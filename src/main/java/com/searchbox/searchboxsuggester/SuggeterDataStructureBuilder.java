@@ -5,16 +5,12 @@
 package com.searchbox.searchboxsuggester;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.tokenize.TokenizerME;
@@ -121,7 +117,6 @@ public class SuggeterDataStructureBuilder {
                 processText(text.toString().toLowerCase());
                 numdocs++;
             }
-            text = null; //mem-leak-check
         }
 
         LOGGER.info("Number of documents analyzed: \t" + numdocs);
@@ -188,15 +183,9 @@ public class SuggeterDataStructureBuilder {
                     if (numterms >= NGRAMS) {
                         break;
                     }
-                    gram = null; //mem-leak-check
-
                 }
-                sb = null; //mem-leak-check
-                tokenNode = null; //mem-leak-check
             }
-            tokens = null; //mem-leak-check
         }
-        seenTerms = null;  //mem-leak-check
     }
 
     private void loadStopWords(String stopWordsFileName) {
