@@ -45,14 +45,11 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     protected Integer ngrams;
     protected Integer minDocFreq;
     protected Integer minTermFreq;
-    
     volatile long numRequests;
     volatile long numErrors;
     volatile long totalBuildTime;
     volatile long totalRequestsTime;
     volatile String lastbuildDate;
-    
-    
     SuggesterTreeHolder suggester;
     protected List<String> fields;
     private boolean keystate = true;
@@ -151,8 +148,8 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         if (build) {
             long lstartTime = System.currentTimeMillis();
             buildAndWrite(searcher);
-            totalBuildTime+= System.currentTimeMillis() - lstartTime;
-            lastbuildDate=new Date().toString();
+            totalBuildTime += System.currentTimeMillis() - lstartTime;
+            lastbuildDate = new Date().toString();
         }
 
         if (suggester == null) {
@@ -160,7 +157,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
                     "Model for SBsuggester not created, create using sbsuggester.build=true");
         }
         String query = params.get(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.QUERY, params.get(CommonParams.Q));
-        LOGGER.info("Query:\t" + query);
+        LOGGER.debug("Query:\t" + query);
         if (query == null) {
             LOGGER.warn("No query, returning..maybe was just used for  building index?");
             numErrors++;
@@ -170,7 +167,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         long lstartTime = System.currentTimeMillis();
         numRequests++;
         
-        SuggestionResultSet suggestions = suggester.getSuggestions(searcher, fields, query);
+        int maxPhraseSearch= params.getInt(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.MAX_PHRASE_SEARCH,SuggesterComponentParams.MAX_PHRASE_SEARCH_DEFAULT);
+        LOGGER.debug("maxPhraseSearch:\t"+maxPhraseSearch);
+        SuggestionResultSet suggestions = suggester.getSuggestions(searcher, fields, query,maxPhraseSearch);
 
         Integer numneeded = params.getInt(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.COUNT, SuggesterComponentParams.COUNT_DEFAULT);
 
@@ -179,17 +178,17 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
         int numout = 0;
         for (SuggestionResult suggestion : suggestions.suggestions) {
-            LOGGER.info(suggestion.suggestion + "\t" + suggestion.probability);
+            LOGGER.debug(suggestion.suggestion + "\t" + suggestion.probability);
             response.add(suggestion.suggestion, suggestion.probability);
             numout++;
             if (numout > numneeded) {
                 break;
             }
         }
-        LOGGER.info("\n\n");
+        LOGGER.debug("\n\n");
 
         rb.rsp.add(SuggesterComponentParams.COMPONENT_NAME, response);
-        totalRequestsTime+= System.currentTimeMillis() - lstartTime;
+        totalRequestsTime += System.currentTimeMillis() - lstartTime;
     }
 
     public void inform(SolrCore core) {
@@ -219,8 +218,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         }
     }
 
-   
-    
     @Override
     public String getDescription() {
         return "Searchbox Suggester";
@@ -243,15 +240,15 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         all.add("requests", "" + numRequests);
         all.add("errors", "" + numErrors);
         all.add("totalBuildTime(ms)", "" + totalBuildTime);
-        all.add("totalRequestTime(ms)",""+totalRequestsTime);
-        if(lastbuildDate==null){
-            lastbuildDate="N/A";
+        all.add("totalRequestTime(ms)", "" + totalRequestsTime);
+        if (lastbuildDate == null) {
+            lastbuildDate = "N/A";
         }
         all.add("lastBuildDate", lastbuildDate);
-        
+
         return all;
     }
-    
+
     public void postCommit() {
         LOGGER.trace("postCommit hit");
 

@@ -14,19 +14,30 @@ import java.util.TreeSet;
 class SuggestionResultSet{
     public TreeSet<SuggestionResult> suggestions;
     public String myval;
+    private long maxTreeSize=100;
     
-    SuggestionResultSet(String myval) {
+
+    SuggestionResultSet(String myval, int maxnumphrases) {
         this.myval=myval;
         suggestions=new TreeSet();
+        maxTreeSize=maxnumphrases;
     }
     
     public void add(String phrase, double probability){
         suggestions.add(new SuggestionResult(phrase, probability));
+        if(maxTreeSize!=-1){
+        if(suggestions.size()>maxTreeSize){
+            suggestions.remove(suggestions.last());
+        }
+        }
     }
+    
     
     public void add(SuggestionResultSet in){
         if(in!=null){
-            suggestions.addAll(in.suggestions);
+            for(SuggestionResult sr : in.suggestions){
+                add(sr.suggestion,sr.probability);
+            }
         }
     }
     
@@ -41,7 +52,7 @@ class SuggestionResultSet{
         for (String phrase: phrases.keySet()){
             double p_pij_ci=phrases.get(phrase)/phrasenormfactor;
             double p_pij_qt=p_ci_qt*p_pij_ci;
-            suggestions.add(new SuggestionResult(phrase,p_pij_qt));
+            add(phrase,p_pij_qt);
         }
     }
 
@@ -56,7 +67,7 @@ class SuggestionResultSet{
         }
 
         public int compareTo(SuggestionResult o) {
-            int retval=o.probability.compareTo(this.probability);;
+            int retval=o.probability.compareTo(this.probability);
             if(retval==0){
                retval=o.suggestion.compareTo(this.suggestion);
             }

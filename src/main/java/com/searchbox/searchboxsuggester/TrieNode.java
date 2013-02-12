@@ -109,7 +109,7 @@ public class TrieNode implements Serializable {
 
     }
 
-    SuggestionResultSet computeQt(String partialToken) {
+    SuggestionResultSet computeQt(String partialToken,int maxnumphrases) {
         TrieNode current = this;
         for (char c : partialToken.toCharArray()) {
             if (current.containsChildValue(c)) {
@@ -118,20 +118,18 @@ public class TrieNode implements Serializable {
                 break;
             }
         }
-        return current.recurse(current.nc.termnormfactor);
+        return current.recurse(current.nc.termnormfactor,maxnumphrases);
     }
 
-    private SuggestionResultSet recurse(double termnormfactor) {
-
-
-        SuggestionResultSet srs = new SuggestionResultSet(myval);
+    private SuggestionResultSet recurse(double termnormfactor, int maxnumphrases) {
+        SuggestionResultSet srs = new SuggestionResultSet(myval,maxnumphrases);
         if (phrases != null && phrases.size() > 0) { //this term exists as a whole
             double p_ci_qt = (termfreq * Math.log10((1.0 * numdocs) / (docfreq))) / (termnormfactor);
             srs.add(phrases, p_ci_qt, nc.phrasenormfactor);//add his phrases and whatnot            
         }
         if (children != null) {
             for (TrieNode child : children.values()) { //this term also exists as a partial
-                srs.add(child.recurse(termnormfactor));
+                srs.add(child.recurse(termnormfactor,maxnumphrases));
             }
         }
         return srs;
@@ -161,18 +159,7 @@ public class TrieNode implements Serializable {
         if (this.termfreq < minTermFreq || this.docfreq < minDocFreq) {
             this.termfreq = 0;
             this.docfreq = 0;
-            if (phrases != null) {
-                phrases.clear();
-            }
-//            Iterator it = phrases.entrySet().iterator();
-//            while (it.hasNext()) {
-//                Map.Entry<String, Double> pairs = (Map.Entry) it.next();
-//                if (pairs.getValue() < minTermFreq) {
-//                    it.remove(); // avoids a ConcurrentModificationException
-//
-//                }
-//
-//            }
+                phrases=null; // no term, no phrases
         }
 
 

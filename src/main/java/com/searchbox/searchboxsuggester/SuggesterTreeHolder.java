@@ -89,14 +89,14 @@ public class SuggesterTreeHolder implements Serializable {
         return token;
     }
 
-    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query) {
-        String[] queryTokens = query.split(" "); //should use tokensizer
-        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1]);
-        LOGGER.info("going into stage 2");
+    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query,int maxPhraseSearch) {
+        String[] queryTokens = query.split(" "); //TODO should use tokensizer..
+        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1],maxPhraseSearch);
+        LOGGER.debug("Doing 2nd part of equation");
         try {
 
             if (queryTokens.length > 1) {
-                SuggestionResultSet newrs = new SuggestionResultSet("unknown");
+                SuggestionResultSet newrs = new SuggestionResultSet("unknown",maxPhraseSearch);
 
                 //use list of pi to compute Q_c
                 BooleanQuery bq = new BooleanQuery();
@@ -153,7 +153,7 @@ public class SuggesterTreeHolder implements Serializable {
 
 
                     //LOGGER.info("BQ2 query:\t" + bp.toString());
-                    double Q_c = .00001; // prevent zero bump down
+                    double Q_c = .0000001; // prevent zero bump down
 
                     //DocSet pd = searcher.getDocSet(p);
 
@@ -167,7 +167,7 @@ public class SuggesterTreeHolder implements Serializable {
                 rs = newrs;
             }
         } catch (IOException ex) {
-            java.util.logging.Logger.getLogger(SuggesterTreeHolder.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.error(ex.getMessage());
         }
         return rs;
     }
