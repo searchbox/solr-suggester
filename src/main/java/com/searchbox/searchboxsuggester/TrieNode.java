@@ -19,6 +19,7 @@ public class TrieNode implements Serializable{
     public long docfreq = 0;
     NormalizeCount nc;
     private int ngram;
+    private int numdocs;
     String myval;
 
     public TrieNode(String prefix, int NGRAM) {
@@ -37,11 +38,11 @@ public class TrieNode implements Serializable{
 
     public TrieNode AddString(String val) {
         TrieNode head = this;
-        TrieNode temp = this;
         for (char c : val.toCharArray()) {
             if (head.containsChildValue(c)) {
                 head = head.getChild(c);
             } else {
+                TrieNode temp = this;
                 temp = new TrieNode(head.myval + c,ngram);
                 head.children.put(c, temp);
                 head = temp;
@@ -50,15 +51,16 @@ public class TrieNode implements Serializable{
         return head;
     }
 
-    public NormalizeCount computeNormalizeTerm(int level) {
+    public NormalizeCount computeNormalizeTerm(int level, int numdocs) {
         // Logger.info("level\t"+level);
         if(docfreq>0){
-            nc.termnormfactor += termfreq * 1.0/(docfreq);
+            this.numdocs=numdocs;
+            nc.termnormfactor += termfreq * Math.log10((numdocs*1.0)/docfreq);
         }
         doPhraseTotalFreq();
         
         for (TrieNode child : children.values()) {
-            NormalizeCount lnc = child.computeNormalizeTerm(level + 1);
+            NormalizeCount lnc = child.computeNormalizeTerm(level + 1,numdocs);
             nc.add(lnc);
 
         }
@@ -103,7 +105,7 @@ public class TrieNode implements Serializable{
         
         SuggestionResultSet srs = new SuggestionResultSet(myval);
         if (phrases.size() > 0) { //this term exists as a whole
-            double p_ci_qt= (      termfreq*(1.0/(docfreq))     ) / (   termnormfactor );
+            double p_ci_qt= (      termfreq*Math.log10((1.0*numdocs)/(docfreq))     ) / (   termnormfactor );
             srs.add(phrases,p_ci_qt,nc.phrasenormfactor);//add his phrases and whatnot            
         }
         for (TrieNode child : children.values()) { //this term also exists as a partial

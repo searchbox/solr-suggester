@@ -39,7 +39,8 @@ public class SuggeterDataStructureBuilder {
     private String tokenizerModelName = "en-token.bin";
     private String stopWordsFileName = "stopwords_for_suggestor.txt";
     private HashSet<String> stopwords = new HashSet<String>();
-    public int NGRAMS = 4;
+    public int NGRAMS;
+    public int numdocs ;
     public int counts[] = new int[NGRAMS];
     private SuggesterTreeHolder suggester = new SuggesterTreeHolder(NGRAMS);
 
@@ -84,20 +85,23 @@ public class SuggeterDataStructureBuilder {
     }
 
     private void iterateThroughDocuments(SolrIndexSearcher searcher, List<String> fields) {
+       
         IndexReader reader = searcher.getIndexReader();
 
 
         Bits liveDocs = MultiFields.getLiveDocs(reader); //WARNING: returns null if there are no deletions
 
-        int docnum = 0;
+       
 
         for (int docID = 0; docID < reader.maxDoc(); docID++) {
             if (liveDocs != null && !liveDocs.get(docID)) {
                 continue;               //deleted
             }
 
+            //if((docID % 1000) == 0){
+                LOGGER.info("Doing "+docID+" of "+reader.maxDoc());
+            //}
             StringBuilder text = new StringBuilder();
-
             for (String field : fields) {
                 try {
                     text.append("  " + reader.document(docID).get(field));
@@ -107,11 +111,11 @@ public class SuggeterDataStructureBuilder {
             }
             if (text.length() > 0) { //might as well see if its empty
                 processText(text.toString().toLowerCase());
-                docnum++;
+                numdocs++;
             }
         }
 
-        LOGGER.info("Number of documents: \t" + docnum);
+        LOGGER.info("Number of documents: \t" + numdocs);
         for (int zz = 0; zz < counts.length; zz++) {
             LOGGER.info("NUMBER OF " + zz + "\t" + counts[zz]);
         }
@@ -121,7 +125,11 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams) {
+        NGRAMS=ngrams;
+        counts = new int[NGRAMS];
+        suggester = new SuggesterTreeHolder(NGRAMS);
+
         init();
         iterateThroughDocuments(searcher, fields);
         computeNormalizers();
@@ -190,7 +198,7 @@ public class SuggeterDataStructureBuilder {
     }
 
     private void computeNormalizers() {
-        suggester.computeNormalizers();
+        suggester.computeNormalizers(numdocs);
     }
 
     /*private void doSuggests() {

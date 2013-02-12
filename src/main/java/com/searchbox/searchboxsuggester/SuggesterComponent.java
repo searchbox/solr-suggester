@@ -5,6 +5,8 @@
 package com.searchbox.searchboxsuggester;
 
 import com.searchbox.searchboxsuggester.SuggestionResultSet.SuggestionResult;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -109,9 +111,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         if (build) {
 
 
-            SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields);
+            SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields,ngrams);
             suggester = sdsb.getSuggester();
-            writeFile(storeDir);
+            //writeFile(storeDir);
 
         }
         
@@ -219,7 +221,8 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     public void writeFile(File dir) throws FileNotFoundException, IOException {
         LOGGER.info("Writing object to file");
         FileOutputStream fos = new FileOutputStream(dir + File.separator + "suggester.ser");
-        ObjectOutputStream oos = new ObjectOutputStream(fos);
+        BufferedOutputStream bos = new BufferedOutputStream(fos);
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
         oos.writeObject(suggester);
         oos.flush();
         oos.close();
@@ -228,8 +231,10 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void readFile(File dir) throws IOException, FileNotFoundException, ClassNotFoundException {
         LOGGER.info("Reading object from file");
+        
         FileInputStream fis = new FileInputStream(dir + File.separator + "suggester.ser");
-        ObjectInputStream ois = new ObjectInputStream(fis);
+        BufferedInputStream bis = new BufferedInputStream(fis);
+        ObjectInputStream ois = new ObjectInputStream(bis);
         suggester = (SuggesterTreeHolder) ois.readObject();
         ois.close();
         LOGGER.info("Done reading object from file");
