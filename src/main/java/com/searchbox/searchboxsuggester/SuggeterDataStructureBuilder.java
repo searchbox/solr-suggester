@@ -4,7 +4,6 @@
  */
 package com.searchbox.searchboxsuggester;
 
-
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -38,15 +37,15 @@ public class SuggeterDataStructureBuilder {
     private TokenizerME tokenizer = null;
     private String tokenizerModelName = "en-token.bin";
     private String stopWordsFileName = "stopwords_for_suggestor.txt";
-    private HashSet<String> stopwords = new HashSet<String>();
+    private HashSet<String> stopwords;
     public int NGRAMS;
-    public int numdocs ;
-    public int counts[] = new int[NGRAMS];
-    private SuggesterTreeHolder suggester = new SuggesterTreeHolder(NGRAMS);
+    public int numdocs;
+    public int counts[];
+    private SuggesterTreeHolder suggester;
 
     /*------------*/
     public void Tokenizer(String filename_model) throws FileNotFoundException {
-        InputStream modelIn = (getClass().getResourceAsStream("/"+filename_model));
+        InputStream modelIn = (getClass().getResourceAsStream("/" + filename_model));
         try {
             TokenizerModel model = new TokenizerModel(modelIn);
             tokenizer = new TokenizerME(model);
@@ -61,7 +60,7 @@ public class SuggeterDataStructureBuilder {
 
     /*------------*/
     public void SentenceParser(String filename_model) throws FileNotFoundException {
-        InputStream modelIn = (getClass().getResourceAsStream("/"+filename_model));
+        InputStream modelIn = (getClass().getResourceAsStream("/" + filename_model));
         try {
             SentenceModel model = new SentenceModel(modelIn);
             sentenceDetector = new SentenceDetectorME(model);
@@ -80,31 +79,29 @@ public class SuggeterDataStructureBuilder {
             Tokenizer(tokenizerModelName);
             loadStopWords(stopWordsFileName);
         } catch (FileNotFoundException ex) {
-            LOGGER.error("File not found",ex);
+            LOGGER.error("File not found", ex);
         }
     }
 
     private void iterateThroughDocuments(SolrIndexSearcher searcher, List<String> fields) {
-       
         IndexReader reader = searcher.getIndexReader();
-
-
         Bits liveDocs = MultiFields.getLiveDocs(reader); //WARNING: returns null if there are no deletions
-
-       
 
         for (int docID = 0; docID < reader.maxDoc(); docID++) {
             if (liveDocs != null && !liveDocs.get(docID)) {
                 continue;               //deleted
             }
 
-            //if((docID % 1000) == 0){
-                LOGGER.info("Doing "+docID+" of "+reader.maxDoc());
-            //}
+            if ((docID % 1000) == 0) {
+                LOGGER.debug("Doing " + docID + " of " + reader.maxDoc());
+            }
+
             StringBuilder text = new StringBuilder();
-            for (String field : fields) {
+            for (String field : fields) {       //not sure if this is the best way, might make sense to do a 
+                //process text for each field individually, but then book keeping 
+                //the doc freq for terms becomes a bit of a pain in the ass
                 try {
-                    text.append("  " + reader.document(docID).get(field));
+                    text.append(". " + reader.document(docID).get(field));
                 } catch (IOException ex) {
                     LOGGER.warn("Document " + docID + " missing requested field (" + field + ")...ignoring");
                 }
@@ -115,9 +112,9 @@ public class SuggeterDataStructureBuilder {
             }
         }
 
-        LOGGER.info("Number of documents: \t" + numdocs);
+        LOGGER.info("Number of documents analyzed: \t" + numdocs);
         for (int zz = 0; zz < counts.length; zz++) {
-            LOGGER.info("NUMBER OF " + zz + "\t" + counts[zz]);
+            LOGGER.debug("Number of " + zz + "-grams: \t" + counts[zz]);
         }
     }
 
@@ -125,26 +122,29 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams) {
-        NGRAMS=ngrams;
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq) {
+        NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS);
 
         init();
         iterateThroughDocuments(searcher, fields);
-        computeNormalizers();
+        computeNormalizers(minDocFreq, minTermFreq);
     }
 
     private void processText(String text) {
+        LOGGER.trace("Processing text:\t" + text);
         HashSet<String> seenTerms = new HashSet<String>();
         for (String sentence : getSentences(text)) {
-            String[] tokens = getTokens(sentence.replaceAll("[^A-Za-z0-9 ]", " ")); //HACK!!
+            String[] tokens = getTokens(sentence.replaceAll("[^A-Za-z0-9 ]", " ")); //TODO: fix this part, its a bit of a hack but should be okay
             for (int zz = 0; zz < tokens.length; zz++) {
+                if (stopwords.contains(tokens[zz])) {     //TODO: should do a skip gram, but we'll look into that later SBSUGGEST-3
+                    continue;
+                }
                 TrieNode tokenNode = suggester.AddString(tokens[zz]);
                 counts[0]++;
-                Double count = tokenNode.phrases.containsKey(tokens[zz]) ? tokenNode.phrases.get(tokens[zz]) : 0.1;
-                tokenNode.phrases.put(tokens[zz], count + 1);
-
+                
+                tokenNode.AddPhraseIncrementCount(tokens[zz], .1);
                 tokenNode.termfreq++;
 
                 if (!seenTerms.contains(tokens[zz])) {
@@ -172,8 +172,7 @@ public class SuggeterDataStructureBuilder {
                     counts[numterms - 1]++;
                     double rightplace = numterms / 10.0;
                     String gram = sb.toString();
-                    Double lcount = tokenNode.phrases.containsKey(gram) ? tokenNode.phrases.get(gram) : rightplace;
-                    tokenNode.phrases.put(gram, lcount + 1);
+                    tokenNode.AddPhraseIncrementCount(gram, rightplace);
                     if (numterms >= NGRAMS) {
                         break;
                     }
@@ -184,40 +183,21 @@ public class SuggeterDataStructureBuilder {
     }
 
     private void loadStopWords(String stopWordsFileName) {
+        stopwords = new HashSet<String>();
         BufferedReader in = null;
         try {
-            in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream("/"+stopWordsFileName))));
+            in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream("/" + stopWordsFileName))));
             String line;
             while ((line = in.readLine()) != null) {
                 stopwords.add(line.trim().toLowerCase());
             }
             in.close();
         } catch (Exception ex) {
-            LOGGER.error("Error loading stopwords");
+            LOGGER.error("Error loading stopwords\t" + ex.getMessage());
         }
     }
 
-    private void computeNormalizers() {
-        suggester.computeNormalizers(numdocs);
+    private void computeNormalizers(int minDocFreq, int minTermFreq) {
+        suggester.computeNormalizers(numdocs, minDocFreq, minTermFreq);
     }
-
-    /*private void doSuggests() {
-        IndexSearcher searcher = null;// new IndexSearcher(reader);
-        for (String testquery : testqueries) {
-            LOGGER.info(testquery + "\n-------\n");
-            SuggestionResultSet suggestions = suggester.getSuggestions(searcher, getTokens(testquery), field);
-            int numout = 0;
-            for (SuggestionResult suggestion : suggestions.suggestions) {
-                LOGGER.info(suggestion.suggestion + "\t" + suggestion.probability);
-                numout++;
-                if (numout > 10) {
-                    break;
-                }
-            }
-            LOGGER.info("\n\n");
-        }
-
-    }*/
-
-
 }

@@ -28,7 +28,8 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
  * @author andrew
  */
 public class SuggesterTreeHolder implements Serializable {
-
+    
+    static final long serialVersionUID  = SuggesterComponentParams.serialVersionUID;
     private static Logger LOGGER = LoggerFactory.getLogger(SuggesterTreeHolder.class);
     private TrieNode headNode;
     public boolean normalized = false;
@@ -45,8 +46,10 @@ public class SuggesterTreeHolder implements Serializable {
         return headNode.AddString(val);
     }
 
-    void computeNormalizers(int numdocs) {
+    void computeNormalizers(int numdocs,int minDocFreq,int minTermFreq) {
         //headNode.printRecurse();;
+        headNode.prune(minDocFreq,minTermFreq); //could merge nodes or rebuild tree also in here
+        
         headNode.computeNormalizeTerm(0,numdocs);
         double[] logavgfreq = new double[headNode.nc.ngramfreq.length];
         for (int zz = 0; zz < logavgfreq.length; zz++) {
@@ -107,7 +110,7 @@ public class SuggesterTreeHolder implements Serializable {
                     }
 
                 }
-
+                 
 
                 // LOGGER.info("BQ1 query:\t" + bq.toString());
                 DocSet qd = searcher.getDocSet(bq);

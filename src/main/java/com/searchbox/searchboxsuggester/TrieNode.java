@@ -5,16 +5,16 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  *
  * @author andrew
  */
-public class TrieNode implements Serializable{
+public class TrieNode implements Serializable {
 
+    static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
     private static Logger LOGGER = LoggerFactory.getLogger(TrieNode.class);
-    HashMap<Character, TrieNode> children = new HashMap<Character, TrieNode>();
-    HashMap<String, Double> phrases = new HashMap<String, Double>();
+    private HashMap<Character, TrieNode> children;
+    private HashMap<String, Double> phrases;
     public long termfreq = 0;
     public long docfreq = 0;
     NormalizeCount nc;
@@ -25,15 +25,35 @@ public class TrieNode implements Serializable{
     public TrieNode(String prefix, int NGRAM) {
         this.myval = prefix;
         nc = new NormalizeCount(NGRAM);
-        ngram=NGRAM;
+        ngram = NGRAM;
     }
 
     public boolean containsChildValue(char c) {
+        if (children == null) {
+            return false;
+        }
         return children.containsKey(c);
     }
 
     public TrieNode getChild(char c) {
         return children.get(c);
+    }
+
+    public void addNode(char c, TrieNode t){
+        if(children==null){
+            children=new HashMap<Character, TrieNode>();
+        }
+        children.put(c, t);
+    }
+    
+    public double AddPhraseIncrementCount(String phrase, double defvalue) {
+        if (phrases == null) {
+            phrases = new HashMap<String, Double>();
+        }
+        Double count = phrases.containsKey(phrase) ? phrases.get(phrase) : defvalue;
+        phrases.put(phrase, count + 1);
+        return count + 1;
+
     }
 
     public TrieNode AddString(String val) {
@@ -43,8 +63,8 @@ public class TrieNode implements Serializable{
                 head = head.getChild(c);
             } else {
                 TrieNode temp = this;
-                temp = new TrieNode(head.myval + c,ngram);
-                head.children.put(c, temp);
+                temp = new TrieNode(head.myval + c, ngram);
+                head.addNode(c, temp);
                 head = temp;
             }
         }
@@ -53,39 +73,40 @@ public class TrieNode implements Serializable{
 
     public NormalizeCount computeNormalizeTerm(int level, int numdocs) {
         // Logger.info("level\t"+level);
-        if(docfreq>0){
-            this.numdocs=numdocs;
-            nc.termnormfactor += termfreq * Math.log10((numdocs*1.0)/docfreq);
+        if (docfreq > 0) {
+            this.numdocs = numdocs;
+            nc.termnormfactor += termfreq * Math.log10((numdocs * 1.0) / docfreq);
         }
         doPhraseTotalFreq();
-        
-        for (TrieNode child : children.values()) {
-            NormalizeCount lnc = child.computeNormalizeTerm(level + 1,numdocs);
-            nc.add(lnc);
+        if (children != null) {
+            for (TrieNode child : children.values()) {
+                NormalizeCount lnc = child.computeNormalizeTerm(level + 1, numdocs);
+                nc.add(lnc);
 
+            }
         }
         return nc;
     }
 
-
-    
     /*public void printRecurse(){
-        Logger.info(myval+"\t"+this.termfreq+"\t"+this.docfreq+"\t"+this.phrases.size()+"\t"+nc.termnormfactor);
-        for (String p :phrases.keySet()){
-            Logger.info("\t"+p+"\t"+phrases.get(p)+"\t"+nc.phrasenormfactor);
-        }
-        for (TrieNode child : children.values()) {
-            child.printRecurse();
-        }
+     Logger.info(myval+"\t"+this.termfreq+"\t"+this.docfreq+"\t"+this.phrases.size()+"\t"+nc.termnormfactor);
+     for (String p :phrases.keySet()){
+     Logger.info("\t"+p+"\t"+phrases.get(p)+"\t"+nc.phrasenormfactor);
+     }
+     for (TrieNode child : children.values()) {
+     child.printRecurse();
+     }
         
-    }*/
-    
+     }*/
     private void doPhraseTotalFreq() {
-        for (Double f : phrases.values()) {
-            int gram=(int) (Math.round((f-Math.floor(f))*10.0)-1); // check right side of decimal to get ngram
-            nc.ngramfreq[gram]+=Math.floor(f);
-            nc.ngramnum[gram]++;
+        if (phrases != null) {
+            for (Double f : phrases.values()) {
+                int gram = (int) (Math.round((f - Math.floor(f)) * 10.0) - 1); // check right side of decimal to get ngram
+                nc.ngramfreq[gram] += Math.floor(f);
+                nc.ngramnum[gram]++;
+            }
         }
+
     }
 
     SuggestionResultSet computeQt(String partialToken) {
@@ -101,55 +122,85 @@ public class TrieNode implements Serializable{
     }
 
     private SuggestionResultSet recurse(double termnormfactor) {
-        
-        
+
+
         SuggestionResultSet srs = new SuggestionResultSet(myval);
-        if (phrases.size() > 0) { //this term exists as a whole
-            double p_ci_qt= (      termfreq*Math.log10((1.0*numdocs)/(docfreq))     ) / (   termnormfactor );
-            srs.add(phrases,p_ci_qt,nc.phrasenormfactor);//add his phrases and whatnot            
+        if (phrases != null && phrases.size() > 0) { //this term exists as a whole
+            double p_ci_qt = (termfreq * Math.log10((1.0 * numdocs) / (docfreq))) / (termnormfactor);
+            srs.add(phrases, p_ci_qt, nc.phrasenormfactor);//add his phrases and whatnot            
         }
-        for (TrieNode child : children.values()) { //this term also exists as a partial
-            srs.add(child.recurse(termnormfactor));
+        if (children != null) {
+            for (TrieNode child : children.values()) { //this term also exists as a partial
+                srs.add(child.recurse(termnormfactor));
+            }
         }
         return srs;
     }
 
     void computeNormalizePhrase(double[] logavgfreq) {
-        for (String phrase : phrases.keySet()) {
-            //Logger.info(phrase + "\t" + phrases.get(phrase));
-            
-            double val =  phrases.get(phrase);
-            int gram=(int)Math.round((val-Math.floor(val))*10.0)-1;
-            double newval = Math.floor(val) / logavgfreq[gram];
-            nc.phrasenormfactor += newval;
-            phrases.put(phrase, newval);
+        if (phrases != null) {
+            for (String phrase : phrases.keySet()) {
+                //Logger.info(phrase + "\t" + phrases.get(phrase));
+
+                double val = phrases.get(phrase);
+                int gram = (int) Math.round((val - Math.floor(val)) * 10.0) - 1;
+                double newval = Math.floor(val) / logavgfreq[gram];
+                nc.phrasenormfactor += newval;
+                phrases.put(phrase, newval);
+            }
         }
-        
-        for (TrieNode child : children.values()) {
-            child.computeNormalizePhrase(logavgfreq);
+        if (children != null) {
+            for (TrieNode child : children.values()) {
+                child.computeNormalizePhrase(logavgfreq);
+            }
         }
         //return nc;
     }
 
+    void prune(int minDocFreq, int minTermFreq) {
+        if (this.termfreq < minTermFreq || this.docfreq < minDocFreq) {
+            this.termfreq = 0;
+            this.docfreq = 0;
+            if (phrases != null) {
+                phrases.clear();
+            }
+//            Iterator it = phrases.entrySet().iterator();
+//            while (it.hasNext()) {
+//                Map.Entry<String, Double> pairs = (Map.Entry) it.next();
+//                if (pairs.getValue() < minTermFreq) {
+//                    it.remove(); // avoids a ConcurrentModificationException
+//
+//                }
+//
+//            }
+        }
 
 
-    public class NormalizeCount implements Serializable{
+        if (children != null) {
+            for (TrieNode child : children.values()) {
+                child.prune(minDocFreq, minTermFreq);
+            }
+        }
+    }
 
+    public class NormalizeCount implements Serializable {
+
+        static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
         public double termnormfactor = 0;
         public double phrasenormfactor = 0;
         public double ngramnum[];
         public double ngramfreq[];
-        
-        public NormalizeCount(int NGRAM){
-              ngramnum= new double[NGRAM];
-              ngramfreq = new double[NGRAM];
+
+        public NormalizeCount(int NGRAM) {
+            ngramnum = new double[NGRAM];
+            ngramfreq = new double[NGRAM];
         }
-        
+
         public void add(NormalizeCount in) {
             this.termnormfactor += in.termnormfactor;
-            for(int zz=0;zz<ngramnum.length;zz++) {
-                ngramfreq[zz]+=in.ngramfreq[zz];
-                ngramnum[zz]+=in.ngramnum[zz];
+            for (int zz = 0; zz < ngramnum.length; zz++) {
+                ngramfreq[zz] += in.ngramfreq[zz];
+                ngramnum[zz] += in.ngramnum[zz];
             }
         }
     }
