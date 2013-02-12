@@ -34,6 +34,7 @@ public class SuggesterComponentParams {
     public static final Integer MINTERMFREQ_DEFAULT = 2;
     public static final String MAX_PHRASE_SEARCH = "mps";
     public static final Integer MAX_PHRASE_SEARCH_DEFAULT = 100;
-    
+    public static final String MAXNUMDOCS = "maxNumDocs";
+    public static final Integer MAXNUMDOCS_DEFAULT = -1;
     
 }

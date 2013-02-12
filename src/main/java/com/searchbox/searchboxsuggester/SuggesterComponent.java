@@ -45,6 +45,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     protected Integer ngrams;
     protected Integer minDocFreq;
     protected Integer minTermFreq;
+    protected Integer maxNumDocs;
     volatile long numRequests;
     volatile long numErrors;
     volatile long totalBuildTime;
@@ -105,10 +106,14 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             minDocFreq = SuggesterComponentParams.MINDOCFREQ_DEFAULT;
         }
 
-
         minTermFreq = (Integer) args.get(SuggesterComponentParams.MINTERMFREQ);
         if (minTermFreq == null) {
             minTermFreq = SuggesterComponentParams.MINTERMFREQ_DEFAULT;
+        }
+
+        maxNumDocs= (Integer) args.get(SuggesterComponentParams.MAXNUMDOCS);
+        if (maxNumDocs== null) {
+            maxNumDocs= SuggesterComponentParams.MAXNUMDOCS_DEFAULT;
         }
 
         fields = ((NamedList) args.get(SuggesterComponentParams.FIELDS)).getAll(SuggesterComponentParams.FIELD);
@@ -117,6 +122,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
                     "Need to specify at least one field");
         }
 
+        LOGGER.debug("maxNumDocs is "+maxNumDocs);
         LOGGER.debug("minDocFreq is " + minDocFreq);
         LOGGER.debug("minTermFreq is " + minTermFreq);
         LOGGER.debug("buildOnCommit is " + buildOnCommit);
@@ -319,8 +325,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void buildAndWrite(SolrIndexSearcher searcher) {
         LOGGER.info("Building suggester model");
-        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq);
+        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs);
         suggester = sdsb.getSuggester();
+        sdsb=null;
         writeFile(storeDir);
         LOGGER.info("Done building and storing suggester model");
     }

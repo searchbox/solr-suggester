@@ -83,17 +83,28 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    private void iterateThroughDocuments(SolrIndexSearcher searcher, List<String> fields) {
+    private void iterateThroughDocuments(SolrIndexSearcher searcher, List<String> fields, int maxNumDocs) {
         IndexReader reader = searcher.getIndexReader();
         Bits liveDocs = MultiFields.getLiveDocs(reader); //WARNING: returns null if there are no deletions
 
+
+        maxNumDocs = Math.min(maxNumDocs, reader.maxDoc());
+
+        if (maxNumDocs == -1) {
+            maxNumDocs = reader.maxDoc();
+        }
+        LOGGER.info("Analyzing docs:\t" + numdocs);
+
         for (int docID = 0; docID < reader.maxDoc(); docID++) {
+            if (numdocs > maxNumDocs) {
+                break;
+            }
             if (liveDocs != null && !liveDocs.get(docID)) {
                 continue;               //deleted
             }
 
             if ((docID % 1000) == 0) {
-                LOGGER.debug("Doing " + docID + " of " + reader.maxDoc());
+                LOGGER.debug("Doing " + docID + " of " + maxNumDocs);
             }
 
             StringBuilder text = new StringBuilder();
@@ -110,6 +121,7 @@ public class SuggeterDataStructureBuilder {
                 processText(text.toString().toLowerCase());
                 numdocs++;
             }
+            text = null; //mem-leak-check
         }
 
         LOGGER.info("Number of documents analyzed: \t" + numdocs);
@@ -122,13 +134,13 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs) {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS);
 
         init();
-        iterateThroughDocuments(searcher, fields);
+        iterateThroughDocuments(searcher, fields, maxNumDocs);
         computeNormalizers(minDocFreq, minTermFreq);
     }
 
@@ -143,7 +155,7 @@ public class SuggeterDataStructureBuilder {
                 }
                 TrieNode tokenNode = suggester.AddString(tokens[zz]);
                 counts[0]++;
-                
+
                 tokenNode.AddPhraseIncrementCount(tokens[zz], .1);
                 tokenNode.termfreq++;
 
@@ -176,10 +188,15 @@ public class SuggeterDataStructureBuilder {
                     if (numterms >= NGRAMS) {
                         break;
                     }
+                    gram = null; //mem-leak-check
 
                 }
+                sb = null; //mem-leak-check
+                tokenNode = null; //mem-leak-check
             }
+            tokens = null; //mem-leak-check
         }
+        seenTerms = null;  //mem-leak-check
     }
 
     private void loadStopWords(String stopWordsFileName) {

@@ -24,7 +24,6 @@ public class TrieNode implements Serializable {
 
     public TrieNode(String prefix, int NGRAM) {
         this.myval = prefix;
-        nc = new NormalizeCount(NGRAM);
         ngram = NGRAM;
     }
 
@@ -39,13 +38,13 @@ public class TrieNode implements Serializable {
         return children.get(c);
     }
 
-    public void addNode(char c, TrieNode t){
-        if(children==null){
-            children=new HashMap<Character, TrieNode>();
+    public void addNode(char c, TrieNode t) {
+        if (children == null) {
+            children = new HashMap<Character, TrieNode>();
         }
         children.put(c, t);
     }
-    
+
     public double AddPhraseIncrementCount(String phrase, double defvalue) {
         if (phrases == null) {
             phrases = new HashMap<String, Double>();
@@ -66,12 +65,16 @@ public class TrieNode implements Serializable {
                 temp = new TrieNode(head.myval + c, ngram);
                 head.addNode(c, temp);
                 head = temp;
+                temp = null; //mem-leak-check
             }
         }
         return head;
     }
 
     public NormalizeCount computeNormalizeTerm(int level, int numdocs) {
+        if (nc == null) {
+            nc = new NormalizeCount(this.ngram);
+        }
         // Logger.info("level\t"+level);
         if (docfreq > 0) {
             this.numdocs = numdocs;
@@ -82,7 +85,6 @@ public class TrieNode implements Serializable {
             for (TrieNode child : children.values()) {
                 NormalizeCount lnc = child.computeNormalizeTerm(level + 1, numdocs);
                 nc.add(lnc);
-
             }
         }
         return nc;
@@ -109,7 +111,7 @@ public class TrieNode implements Serializable {
 
     }
 
-    SuggestionResultSet computeQt(String partialToken,int maxnumphrases) {
+    SuggestionResultSet computeQt(String partialToken, int maxnumphrases) {
         TrieNode current = this;
         for (char c : partialToken.toCharArray()) {
             if (current.containsChildValue(c)) {
@@ -118,18 +120,18 @@ public class TrieNode implements Serializable {
                 break;
             }
         }
-        return current.recurse(current.nc.termnormfactor,maxnumphrases);
+        return current.recurse(current.nc.termnormfactor, maxnumphrases);
     }
 
     private SuggestionResultSet recurse(double termnormfactor, int maxnumphrases) {
-        SuggestionResultSet srs = new SuggestionResultSet(myval,maxnumphrases);
+        SuggestionResultSet srs = new SuggestionResultSet(myval, maxnumphrases);
         if (phrases != null && phrases.size() > 0) { //this term exists as a whole
             double p_ci_qt = (termfreq * Math.log10((1.0 * numdocs) / (docfreq))) / (termnormfactor);
             srs.add(phrases, p_ci_qt, nc.phrasenormfactor);//add his phrases and whatnot            
         }
         if (children != null) {
             for (TrieNode child : children.values()) { //this term also exists as a partial
-                srs.add(child.recurse(termnormfactor,maxnumphrases));
+                srs.add(child.recurse(termnormfactor, maxnumphrases));
             }
         }
         return srs;
@@ -159,7 +161,7 @@ public class TrieNode implements Serializable {
         if (this.termfreq < minTermFreq || this.docfreq < minDocFreq) {
             this.termfreq = 0;
             this.docfreq = 0;
-                phrases=null; // no term, no phrases
+            phrases = null; // no term, no phrases
         }
 
 
@@ -184,10 +186,12 @@ public class TrieNode implements Serializable {
         }
 
         public void add(NormalizeCount in) {
-            this.termnormfactor += in.termnormfactor;
-            for (int zz = 0; zz < ngramnum.length; zz++) {
-                ngramfreq[zz] += in.ngramfreq[zz];
-                ngramnum[zz] += in.ngramnum[zz];
+            if (in != null) {
+                this.termnormfactor += in.termnormfactor;
+                for (int zz = 0; zz < ngramnum.length; zz++) {
+                    ngramfreq[zz] += in.ngramfreq[zz];
+                    ngramnum[zz] += in.ngramnum[zz];
+                }
             }
         }
     }
