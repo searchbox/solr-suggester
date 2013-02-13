@@ -11,6 +11,7 @@ import java.io.StringReader;
 import java.util.List;
 import java.util.logging.Level;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -22,14 +23,18 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
+import org.apache.solr.client.solrj.SolrQuery;
 
 /**
  *
  * @author andrew
  */
 public class SuggesterTreeHolder implements Serializable {
-    
-    static final long serialVersionUID  = SuggesterComponentParams.serialVersionUID;
+
+    static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
     private static Logger LOGGER = LoggerFactory.getLogger(SuggesterTreeHolder.class);
     private TrieNode headNode;
     public boolean normalized = false;
@@ -46,11 +51,11 @@ public class SuggesterTreeHolder implements Serializable {
         return headNode.AddString(val);
     }
 
-    void computeNormalizers(int numdocs,int minDocFreq,int minTermFreq) {
+    void computeNormalizers(int numdocs, int minDocFreq, int minTermFreq) {
         //headNode.printRecurse();;
-        headNode.prune(minDocFreq,minTermFreq); //could merge nodes or rebuild tree also in here
-        
-        headNode.computeNormalizeTerm(0,numdocs);
+        headNode.prune(minDocFreq, minTermFreq); //could merge nodes or rebuild tree also in here
+
+        headNode.computeNormalizeTerm(0, numdocs);
         double[] logavgfreq = new double[headNode.nc.ngramfreq.length];
         for (int zz = 0; zz < logavgfreq.length; zz++) {
             logavgfreq[zz] = Math.log10(headNode.nc.ngramfreq[zz] / headNode.nc.ngramnum[zz]);
@@ -89,79 +94,82 @@ public class SuggesterTreeHolder implements Serializable {
         return token;
     }
 
-    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query,int maxPhraseSearch) {
+    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query, int maxPhraseSearch) {
         String[] queryTokens = query.split(" "); //TODO should use tokensizer..
-        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1],maxPhraseSearch);
+        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1], maxPhraseSearch);
         LOGGER.debug("Doing 2nd part of equation");
         try {
 
             if (queryTokens.length > 1) {
-                SuggestionResultSet newrs = new SuggestionResultSet("unknown",maxPhraseSearch);
 
-                //use list of pi to compute Q_c
-                BooleanQuery bq = new BooleanQuery();
+                QueryParser parser = new QueryParser(Version.LUCENE_40, "contents", new SimpleAnalyzer(Version.LUCENE_40));
+
+                SuggestionResultSet newrs = new SuggestionResultSet("unknown", maxPhraseSearch);
+                StringBuilder sb = new StringBuilder();
                 for (int zz = 0; zz < queryTokens.length - 1; zz++) {
+                    StringBuilder inner = new StringBuilder();
+
                     for (String field : fields) {
                         String token = getToken(searcher, field, queryTokens[zz]);
                         if (token != null) { //happens if token is a stopword
-                            TermQuery tq = new TermQuery(new Term(field, token));
-                            bq.add(tq, BooleanClause.Occur.SHOULD);
+                            inner.append(field + ":" + token + " ");
                         }
                     }
-
+                    if (inner.length() > 0) {
+                        sb.append("+(" + inner + ")");
+                    }
                 }
-                 
-
-                // LOGGER.info("BQ1 query:\t" + bq.toString());
-                DocSet qd = searcher.getDocSet(bq);
 
 
-               // LOGGER.info("Number of docs in set\t" + qd.size());
+                LOGGER.info("SB query:\t" + sb.toString());
+                Query q = null;
+                try {
+                    q = parser.parse(sb.toString());
+                    LOGGER.info("BQ1 query:\t" + q.toString());
+                } catch (Exception e) {
+                }
+                DocSet qd = searcher.getDocSet(q);
+                // LOGGER.info("Number of docs in set\t" + qd.size());
 
                 for (SuggestionResult sr : rs.suggestions) {
-                    DocSet pd = searcher.getDocSet(bq).andNot(qd);
-              //      LOGGER.info("Number of docs in pd set\t" + pd.size());
-
-                    //BooleanQuery bp = new BooleanQuery();
+                    sb = new StringBuilder();
                     String[] suggestionTokens = sr.suggestion.split(" "); //should use tokensizer
-//                    for(String toprint:suggestionTokens){
-//                        System.out.print(toprint+"\t");
-//                    }
-//                    System.out.println("");
+
                     for (int zz = 0; zz < suggestionTokens.length; zz++) {
-                        DocSet pdinner = searcher.getDocSet(bq).andNot(qd);
-                        // BooleanQuery bpinner = new BooleanQuery();
+                        StringBuilder inner = new StringBuilder();
                         for (String field : fields) {
                             String token = getToken(searcher, field, suggestionTokens[zz]); //analyzer per field, not very fast...
                             if (token != null) { //happens if token is a stop word
-                                //TermQuery tq = new TermQuery(new Term(field, token));
-                                pdinner = pdinner.union(searcher.getDocSet(new TermQuery(new Term(field, token))));
-                                //       bpinner.add(tq, BooleanClause.Occur.SHOULD);
+                                inner.append(field + ":" + token + " ");
                             }
 
                         }
-                        /*if(bpinner.clauses().size()>0){
-                         // bp.add(bpinner, BooleanClause.Occur.MUST);
-                         }*/
-                        if (pd.size() == 0) { //basecase
-                            pd = pdinner;
-                        } else {
-                            pd = pd.intersection(pdinner);
+                        if (inner.length() > 0) {
+                            sb.append("+(" + inner + ")");
                         }
-
                     }
 
 
-                    //LOGGER.info("BQ2 query:\t" + bp.toString());
+
                     double Q_c = .0000001; // prevent zero bump down
 
-                    //DocSet pd = searcher.getDocSet(p);
+                    try {
+                        LOGGER.info("BQ2 query String:\t" + sb.toString());
+                        q = parser.parse(sb.toString());
+                        LOGGER.info("BQ2 query query:\t" + q.toString());
+                    } catch (Exception e) {
+                        LOGGER.error("parser fail?");
+                    }
 
-                    //LOGGER.info("Number of docs in phrase set\t" + pd.size());
+
+
+                    DocSet pd = searcher.getDocSet(q);
+
+                    LOGGER.info("Number of docs in phrase set\t" + pd.size());
                     if (pd.size() != 0) {
                         Q_c += qd.intersection(pd).size() / (pd.size() * 1.0);
                     }
-                    //LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c  + ") * ("+sr.probability+")");
+                    LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
                     newrs.add(sr.suggestion, sr.probability * Q_c);
                 }
                 rs = newrs;
