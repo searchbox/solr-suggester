@@ -102,18 +102,14 @@ public class SuggesterTreeHolder implements Serializable {
 
             if (queryTokens.length > 1) {
 
-                QueryParser parser = new QueryParser(Version.LUCENE_40, "contents", new SimpleAnalyzer(Version.LUCENE_40));
+                QueryParser parser = new QueryParser(Version.LUCENE_40, "contents", searcher.getCore().getSchema().getAnalyzer());
 
                 SuggestionResultSet newrs = new SuggestionResultSet("unknown", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
                 for (int zz = 0; zz < queryTokens.length - 1; zz++) {
                     StringBuilder inner = new StringBuilder();
-
                     for (String field : fields) {
-                        String token = getToken(searcher, field, queryTokens[zz]);
-                        if (token != null) { //happens if token is a stopword
-                            inner.append(field + ":" + token + " ");
-                        }
+                        inner.append(field + ":" + queryTokens[zz] + " ");
                     }
                     if (inner.length() > 0) {
                         sb.append("+(" + inner + ")");
@@ -121,11 +117,11 @@ public class SuggesterTreeHolder implements Serializable {
                 }
 
 
-                LOGGER.info("SB query:\t" + sb.toString());
+               // LOGGER.info("SB query:\t" + sb.toString());
                 Query q = null;
                 try {
                     q = parser.parse(sb.toString());
-                    LOGGER.info("BQ1 query:\t" + q.toString());
+                    //LOGGER.info("BQ1 query:\t" + q.toString());
                 } catch (Exception e) {
                 }
                 DocSet qd = searcher.getDocSet(q);
@@ -138,11 +134,7 @@ public class SuggesterTreeHolder implements Serializable {
                     for (int zz = 0; zz < suggestionTokens.length; zz++) {
                         StringBuilder inner = new StringBuilder();
                         for (String field : fields) {
-                            String token = getToken(searcher, field, suggestionTokens[zz]); //analyzer per field, not very fast...
-                            if (token != null) { //happens if token is a stop word
-                                inner.append(field + ":" + token + " ");
-                            }
-
+                            inner.append(field + ":" + suggestionTokens[zz] + " ");
                         }
                         if (inner.length() > 0) {
                             sb.append("+(" + inner + ")");
@@ -154,22 +146,22 @@ public class SuggesterTreeHolder implements Serializable {
                     double Q_c = .0000001; // prevent zero bump down
 
                     try {
-                        LOGGER.info("BQ2 query String:\t" + sb.toString());
+                        //LOGGER.info("BQ2 query String:\t" + sb.toString());
                         q = parser.parse(sb.toString());
-                        LOGGER.info("BQ2 query query:\t" + q.toString());
+                        //LOGGER.info("BQ2 query query:\t" + q.toString());
                     } catch (Exception e) {
-                        LOGGER.error("parser fail?");
+                      //  LOGGER.error("parser fail?");
                     }
 
 
 
                     DocSet pd = searcher.getDocSet(q);
 
-                    LOGGER.info("Number of docs in phrase set\t" + pd.size());
+                    //LOGGER.info("Number of docs in phrase set\t" + pd.size());
                     if (pd.size() != 0) {
                         Q_c += qd.intersection(pd).size() / (pd.size() * 1.0);
                     }
-                    LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
+                  //  LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
                     newrs.add(sr.suggestion, sr.probability * Q_c);
                 }
                 rs = newrs;
