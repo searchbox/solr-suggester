@@ -2,9 +2,9 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.searchbox.searchboxsuggester;
+package com.searchbox;
 
-import com.searchbox.searchboxsuggester.SuggestionResultSet.SuggestionResult;
+import com.searchbox.SuggestionResultSet.SuggestionResult;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.StringReader;

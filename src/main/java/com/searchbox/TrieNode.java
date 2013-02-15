@@ -1,4 +1,4 @@
-package com.searchbox.searchboxsuggester;
+package com.searchbox;
 
 import java.io.Serializable;
 import java.util.HashMap;
