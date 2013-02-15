@@ -24,7 +24,7 @@ Getting Started
 Add the following request handler to the appropriate solrconfig.xml:
 
 
-	<searchComponent class="com.searchbox.searchboxsuggester.SuggesterComponent" name="sbsuggest">
+	<searchComponent class="com.searchbox.SuggesterComponent" name="sbsuggest">
             <lst name="fields">
                 <str name="field">article-title</str>
 				<str name="field">article-abstract</str>
