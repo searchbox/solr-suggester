@@ -13,6 +13,7 @@ public class SuggesterComponentParams {
     
     public static final long serialVersionUID = 42L;
     public static String PRODUCT_NAME = "sbsuggester";
+    public static String PRODUCT_KEY = "sug";
     public static final String COMPONENT_NAME = "sbsuggester";
     public static final String BUILD_ON_OPTIMIZE = "buildOnOptimize";
     public static final String BUILD_ON_OPTIMIZE_DEFAULT = "false";

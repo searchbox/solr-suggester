@@ -70,7 +70,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
                     "Need to specify license key using <str name=\"key\"></str>.\n If you don't have a key email contact@searchbox.com to obtain one.");
         }
-        if (!checkLicense(key, SuggesterComponentParams.PRODUCT_NAME)) {
+        if (!checkLicense(key, SuggesterComponentParams.PRODUCT_KEY)) {
             keystate = false;
             throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
                     "License key is not valid for this product, email contact@searchbox.com to obtain one.");
@@ -148,7 +148,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         }
         SolrParams params = rb.req.getParams();
 
-        boolean build = params.getBool(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.BUILD, false);
+        boolean build = params.getBool(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.BUILD, false);
         SolrIndexSearcher searcher = rb.req.getSearcher();
         if (build) {
             long lstartTime = System.currentTimeMillis();
@@ -161,7 +161,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
                     "Model for SBsuggester not created, create using sbsuggester.build=true");
         }
-        String query = params.get(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.QUERY, params.get(CommonParams.Q));
+        String query = params.get(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.QUERY, params.get(CommonParams.Q));
         LOGGER.debug("Query:\t" + query);
         if (query == null) {
             LOGGER.warn("No query, returning..maybe was just used for  building index?");
@@ -172,11 +172,11 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         long lstartTime = System.currentTimeMillis();
         numRequests++;
         
-        int maxPhraseSearch= params.getInt(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.MAX_PHRASE_SEARCH,SuggesterComponentParams.MAX_PHRASE_SEARCH_DEFAULT);
+        int maxPhraseSearch= params.getInt(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.MAX_PHRASE_SEARCH,SuggesterComponentParams.MAX_PHRASE_SEARCH_DEFAULT);
         LOGGER.debug("maxPhraseSearch:\t"+maxPhraseSearch);
         SuggestionResultSet suggestions = suggester.getSuggestions(searcher, fields, query,maxPhraseSearch);
 
-        Integer numneeded = params.getInt(SuggesterComponentParams.COMPONENT_NAME + "." + SuggesterComponentParams.COUNT, SuggesterComponentParams.COUNT_DEFAULT);
+        Integer numneeded = params.getInt(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.COUNT, SuggesterComponentParams.COUNT_DEFAULT);
 
 
         NamedList response = new SimpleOrderedMap();
@@ -192,7 +192,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         }
         LOGGER.debug("\n\n");
 
-        rb.rsp.add(SuggesterComponentParams.COMPONENT_NAME, response);
+        rb.rsp.add(SuggesterComponentParams.PRODUCT_NAME, response);
         totalRequestsTime += System.currentTimeMillis() - lstartTime;
     }
 
@@ -318,8 +318,8 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         LOGGER.info("Done reading object from file");
     }
 
-    private boolean checkLicense(String key, String PRODUCT_NAME) {
-        return com.searchbox.utils.DecryptLicense.checkLicense(key, PRODUCT_NAME);
+    private boolean checkLicense(String key, String PRODUCT_KEY) {
+        return com.searchbox.utils.DecryptLicense.checkLicense(key, PRODUCT_KEY);
     }
 
     private void buildAndWrite(SolrIndexSearcher searcher) {
