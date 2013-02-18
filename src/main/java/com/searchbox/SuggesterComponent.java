@@ -184,7 +184,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         int numout = 0;
         for (SuggestionResult suggestion : suggestions.suggestions) {
             LOGGER.debug(suggestion.suggestion + "\t" + suggestion.probability);
-            response.add(suggestion.suggestion, suggestion.probability);
+            response.add(suggestions.myval+suggestion.suggestion, suggestion.probability);
             numout++;
             if (numout > numneeded) {
                 break;
@@ -313,7 +313,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             suggester = (SuggesterTreeHolder) ois.readObject();
             ois.close();
         } catch (Exception e) {
-            LOGGER.error("There was a problem with load model from disk. Suggester will not work unless build=true option is passed." + e.getMessage());
+            LOGGER.error("There was a problem with load model from disk. Suggester will not work unless build=true option is passed. Stack Message: " + e.getMessage());
         }
         LOGGER.info("Done reading object from file");
     }
