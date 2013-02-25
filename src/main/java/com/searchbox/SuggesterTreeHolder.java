@@ -102,7 +102,7 @@ public class SuggesterTreeHolder implements Serializable {
                 SuggestionResultSet newrs = new SuggestionResultSet("unknown", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
                 for (int zz = 0; zz < queryTokens.length - 1; zz++) {
-                    rs.myval=rs.myval+queryTokens[zz]+" ";
+                    newrs.myval=newrs.myval+queryTokens[zz]+" ";
                     StringBuilder inner = new StringBuilder();
                     for (String field : fields) {
                         inner.append(field + ":" + queryTokens[zz] + " ");
