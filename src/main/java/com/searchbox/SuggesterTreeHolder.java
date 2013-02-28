@@ -90,7 +90,7 @@ public class SuggesterTreeHolder implements Serializable {
 
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query, int maxPhraseSearch) {
         String[] queryTokens = query.split(" "); //TODO should use tokensizer..
-        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1], maxPhraseSearch);
+        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
         rs.myval="";
         LOGGER.debug("Doing 2nd part of equation");
         try {
