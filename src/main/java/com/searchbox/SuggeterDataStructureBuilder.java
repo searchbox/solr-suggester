@@ -145,33 +145,36 @@ public class SuggeterDataStructureBuilder {
         for (String sentence : getSentences(text)) {
             String[] tokens = getTokens(sentence.replaceAll("[^A-Za-z0-9 ]", " ")); //TODO: fix this part, its a bit of a hack but should be okay
             for (int zz = 0; zz < tokens.length; zz++) {
-                if (stopwords.contains(tokens[zz])) {     //TODO: should do a skip gram, but we'll look into that later SBSUGGEST-3
+                String localtoken = light_stem(tokens[zz]);
+                if (stopwords.contains(localtoken)) {     //TODO: should do a skip gram, but we'll look into that later SBSUGGEST-3
                     continue;
                 }
-                TrieNode tokenNode = suggester.AddString(tokens[zz]);
+
+                TrieNode tokenNode = suggester.AddString(localtoken);
                 counts[0]++;
 
-                tokenNode.AddPhraseIncrementCount(tokens[zz], .1);
+                tokenNode.AddPhraseIncrementCount(localtoken, .1);
                 tokenNode.termfreq++;
 
-                if (!seenTerms.contains(tokens[zz])) {
+                if (!seenTerms.contains(localtoken)) {
                     tokenNode.docfreq++;
-                    seenTerms.add(tokens[zz]);
+                    seenTerms.add(localtoken);
                 }
 
                 int numterms = 1;
                 int yy = zz;
                 StringBuilder sb = new StringBuilder();
-                sb.append(tokens[zz]);
+                sb.append(localtoken);
                 while (true) {
                     yy++;
                     if (yy >= tokens.length) { // no other tokens in stream...
                         break;
                     }
-
-                    sb.append(" " + tokens[yy]);
+                    String localtoken_2 = tokens[yy];
+                    localtoken_2 = light_stem(localtoken_2);
+                    sb.append(" " + localtoken_2);
                     //LOGGER.info(numterms+"\t"+sb);
-                    if (stopwords.contains(tokens[yy])) { //president of
+                    if (stopwords.contains(localtoken_2)) { //president of
                         continue;
                     }
 
@@ -205,5 +208,38 @@ public class SuggeterDataStructureBuilder {
 
     private void computeNormalizers(int minDocFreq, int minTermFreq) {
         suggester.computeNormalizers(numdocs, minDocFreq, minTermFreq);
+    }
+
+    private String light_stem(String tokenin) {
+        char[] chars = tokenin.toCharArray();
+        int pos = -1;
+        if (chars.length <= 3) { // to small, just return it
+            return tokenin;
+        }
+
+        boolean remove_s = false;
+        if (chars[chars.length - 1] == 's') //ends in s
+        {
+            if (chars[chars.length - 2] == 'e') {   //ends in es
+                pos = chars.length - 3;
+                if (pos == 2 || (chars[chars.length - 3] == 's' && chars[chars.length - 4] != 's' )) {              //to small: lines bikes holes ....has another s: diseases but not 2 ss: processes
+                    pos++;
+                    remove_s = true;
+                }
+            } else {
+                if (chars[chars.length - 2] == 'i' || chars[chars.length - 2] == 'u' ) {  //metastasis analysis ... fetus
+                    pos = -1;
+                } else {
+                    pos = chars.length - 2;     //nope, just ends in s
+                }
+            }
+        }
+
+        //check if chars[pos] contains consonant, char compare is much faster than regexp!
+        if (remove_s || (pos != -1 && chars[pos] != 'a' && chars[pos] != 'e' && chars[pos] != 'i' && chars[pos] != 'o' && chars[pos] != 'u')) {
+            tokenin = tokenin.substring(0, pos + 1);
+        }
+
+        return tokenin;
     }
 }
