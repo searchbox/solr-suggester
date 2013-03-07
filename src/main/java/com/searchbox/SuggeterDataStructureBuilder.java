@@ -16,6 +16,7 @@ import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.tokenize.TokenizerME;
 import opennlp.tools.tokenize.TokenizerModel;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.Bits;
 import org.apache.solr.search.SolrIndexSearcher;
@@ -108,7 +109,12 @@ public class SuggeterDataStructureBuilder {
                 //process text for each field individually, but then book keeping 
                 //the doc freq for terms becomes a bit of a pain in the ass
                 try {
-                    text.append(". " + reader.document(docID).get(field));
+                    IndexableField [] multifield= reader.document(docID).getFields(field);
+                    for(IndexableField singlefield: multifield){
+                           text.append(". " + singlefield.stringValue());
+                    }
+                    
+                    
                 } catch (IOException ex) {
                     LOGGER.warn("Document " + docID + " missing requested field (" + field + ")...ignoring");
                 }
