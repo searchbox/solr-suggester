@@ -45,6 +45,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     protected Integer minDocFreq;
     protected Integer minTermFreq;
     protected Integer maxNumDocs;
+    protected String nonpruneFileName;
     volatile long numRequests;
     volatile long numErrors;
     volatile long totalBuildTime;
@@ -93,8 +94,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         if (storeDirname == null) {
             storeDirname = SuggesterComponentParams.STOREDIR_DEFAULT;
         }
-
-
+        
+        nonpruneFileName = (String) args.get(SuggesterComponentParams.NONPRUNEFILE);
+        
         ngrams = (Integer) args.get(SuggesterComponentParams.NGRAMS);
         if (ngrams == null) {
             ngrams = Integer.parseInt(SuggesterComponentParams.NGRAMS_DEFAULT);
@@ -129,7 +131,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         LOGGER.debug("storeDirname is " + storeDirname);
         LOGGER.debug("Ngrams is " + ngrams);
         LOGGER.debug("Fields is " + fields);
-
+        LOGGER.debug("Nonprune file is " + nonpruneFileName);
 
     }
 
@@ -324,7 +326,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void buildAndWrite(SolrIndexSearcher searcher) {
         LOGGER.info("Building suggester model");
-        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs);
+        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName);
         suggester = sdsb.getSuggester();
         sdsb=null;
         writeFile(storeDir);

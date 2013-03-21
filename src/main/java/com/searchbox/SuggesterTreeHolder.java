@@ -5,9 +5,14 @@
 package com.searchbox;
 
 import com.searchbox.SuggestionResultSet.SuggestionResult;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.io.StringReader;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
 import org.apache.lucene.analysis.TokenStream;
@@ -34,11 +39,21 @@ public class SuggesterTreeHolder implements Serializable {
     public boolean normalized = false;
     double logavgbifreq = 0;
     double logavgtrifreq = 0;
+    private HashSet<String> nonprune;
     int ngrams;
 
     SuggesterTreeHolder(int NGRAMS) {
         ngrams = NGRAMS;
         headNode = new TrieNode("", ngrams);
+        nonprune = new HashSet<String>();
+    }
+
+    SuggesterTreeHolder(int NGRAMS, String nonpruneFileName) {
+        ngrams = NGRAMS;
+        headNode = new TrieNode("", ngrams);
+        if (nonpruneFileName != null) {
+            loadNonPruneWords(nonpruneFileName);
+        }
     }
 
     public TrieNode AddString(String val) {
@@ -47,7 +62,7 @@ public class SuggesterTreeHolder implements Serializable {
 
     void computeNormalizers(int numdocs, int minDocFreq, int minTermFreq) {
         //headNode.printRecurse();;
-        headNode.prune(minDocFreq, minTermFreq); //could merge nodes or rebuild tree also in here
+        headNode.prune(minDocFreq, minTermFreq, nonprune); //could merge nodes or rebuild tree also in here
 
         headNode.computeNormalizeTerm(0, numdocs);
         double[] logavgfreq = new double[headNode.nc.ngramfreq.length];
@@ -65,33 +80,32 @@ public class SuggesterTreeHolder implements Serializable {
         //headNode.printRecurse();
     }
 
-    private String getToken(SolrIndexSearcher searcher, String field, String queryWord) {
-        String token = null;
-        try {
+    /*private String getToken(SolrIndexSearcher searcher, String field, String queryWord) {
+     String token = null;
+     try {
 
 
-            TokenStream tokenStream = searcher.getCore().getSchema().getAnalyzer().tokenStream(field, new StringReader(queryWord));
-            tokenStream.reset();
-            OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
-            CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
+     TokenStream tokenStream = searcher.getCore().getSchema().getAnalyzer().tokenStream(field, new StringReader(queryWord));
+     tokenStream.reset();
+     OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
+     CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 
-            while (tokenStream.incrementToken()) {
-                int startOffset = offsetAttribute.startOffset();
-                int endOffset = offsetAttribute.endOffset();
-                token = charTermAttribute.toString();
-            }
+     while (tokenStream.incrementToken()) {
+     int startOffset = offsetAttribute.startOffset();
+     int endOffset = offsetAttribute.endOffset();
+     token = charTermAttribute.toString();
+     }
 
-        } catch (IOException ex) {
-            java.util.logging.Logger.getLogger(SuggesterTreeHolder.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        //LOGGER.debug("Took (" + queryWord + " ) and put to ( " + token + ") ");
-        return token;
-    }
-
+     } catch (IOException ex) {
+     java.util.logging.Logger.getLogger(SuggesterTreeHolder.class.getName()).log(Level.SEVERE, null, ex);
+     }
+     //LOGGER.debug("Took (" + queryWord + " ) and put to ( " + token + ") ");
+     return token;
+     }*/
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query, int maxPhraseSearch) {
         String[] queryTokens = query.split(" "); //TODO should use tokensizer..
         SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
-        rs.myval="";
+        rs.myval = "";
         LOGGER.debug("Doing 2nd part of equation");
         try {
 
@@ -102,7 +116,7 @@ public class SuggesterTreeHolder implements Serializable {
                 SuggestionResultSet newrs = new SuggestionResultSet("", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
                 for (int zz = 0; zz < queryTokens.length - 1; zz++) {
-                    newrs.myval=newrs.myval+queryTokens[zz]+" ";
+                    newrs.myval = newrs.myval + queryTokens[zz] + " ";
                     StringBuilder inner = new StringBuilder();
                     for (String field : fields) {
                         inner.append(field + ":" + queryTokens[zz] + " ");
@@ -113,7 +127,7 @@ public class SuggesterTreeHolder implements Serializable {
                 }
 
 
-               // LOGGER.info("SB query:\t" + sb.toString());
+                // LOGGER.info("SB query:\t" + sb.toString());
                 Query q = null;
                 try {
                     q = parser.parse(sb.toString());
@@ -146,7 +160,7 @@ public class SuggesterTreeHolder implements Serializable {
                         q = parser.parse(sb.toString());
                         //LOGGER.info("BQ2 query query:\t" + q.toString());
                     } catch (Exception e) {
-                      //  LOGGER.error("parser fail?");
+                        //  LOGGER.error("parser fail?");
                     }
 
 
@@ -157,7 +171,7 @@ public class SuggesterTreeHolder implements Serializable {
                     if (pd.size() != 0) {
                         Q_c += qd.intersection(pd).size() / (pd.size() * 1.0);
                     }
-                  //  LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
+                    //  LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
                     newrs.add(sr.suggestion, sr.probability * Q_c);
                 }
                 rs = newrs;
@@ -166,5 +180,26 @@ public class SuggesterTreeHolder implements Serializable {
             LOGGER.error(ex.getMessage());
         }
         return rs;
+    }
+
+    private void loadNonPruneWords(String nonpruneFileName) {
+        nonprune = new HashSet<String>();
+        BufferedReader in = null;
+        if (nonpruneFileName == null) {
+            return;
+        }
+        try {
+            String workingDir = System.getProperty("user.dir");
+            LOGGER.info(workingDir);
+            in = new BufferedReader(new InputStreamReader(new FileInputStream(nonpruneFileName)));
+            String line;
+            while ((line = in.readLine()) != null) {
+                String[] wordscore = line.split("\\s+");
+                nonprune.add(wordscore[0].trim().toLowerCase());
+            }
+            in.close();
+        } catch (Exception ex) {
+            LOGGER.error("Error loading non-Prune words , format is word_string [newline]\t" + ex.getMessage());
+        }
     }
 }

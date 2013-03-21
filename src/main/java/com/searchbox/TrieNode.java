@@ -2,6 +2,7 @@ package com.searchbox;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.HashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,8 +158,8 @@ public class TrieNode implements Serializable {
         //return nc;
     }
 
-    void prune(int minDocFreq, int minTermFreq) {
-        if (this.termfreq < minTermFreq || this.docfreq < minDocFreq) {
+    void prune(int minDocFreq, int minTermFreq, HashSet<String> nonprune) {
+        if (!nonprune.contains(myval) && (this.termfreq < minTermFreq || this.docfreq < minDocFreq)) { //we're not going to remove it if it comes from the file
             this.termfreq = 0;
             this.docfreq = 0;
             phrases = null; // no term, no phrases
@@ -167,7 +168,7 @@ public class TrieNode implements Serializable {
 
         if (children != null) {
             for (TrieNode child : children.values()) {
-                child.prune(minDocFreq, minTermFreq);
+                child.prune(minDocFreq, minTermFreq, nonprune);
             }
         }
     }

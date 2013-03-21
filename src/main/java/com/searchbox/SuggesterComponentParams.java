@@ -23,6 +23,7 @@ public class SuggesterComponentParams {
     public static final String FIELD = "field";
     public static final String STOREDIR = "storeDir";
     public static final String STOREDIR_DEFAULT = COMPONENT_NAME;
+    public static final String NONPRUNEFILE = "nonPruneFile";
     public static final String NGRAMS = "ngrams";
     public static final String NGRAMS_DEFAULT = "3";
     public static final String BUILD = "build";

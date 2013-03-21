@@ -109,12 +109,12 @@ public class SuggeterDataStructureBuilder {
                 //process text for each field individually, but then book keeping 
                 //the doc freq for terms becomes a bit of a pain in the ass
                 try {
-                    IndexableField [] multifield= reader.document(docID).getFields(field);
-                    for(IndexableField singlefield: multifield){
-                           text.append(". " + singlefield.stringValue());
+                    IndexableField[] multifield = reader.document(docID).getFields(field);
+                    for (IndexableField singlefield : multifield) {
+                        text.append(". " + singlefield.stringValue());
                     }
-                    
-                    
+
+
                 } catch (IOException ex) {
                     LOGGER.warn("Document " + docID + " missing requested field (" + field + ")...ignoring");
                 }
@@ -135,10 +135,10 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName) {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
-        suggester = new SuggesterTreeHolder(NGRAMS);
+        suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
 
         init();
         iterateThroughDocuments(searcher, fields, maxNumDocs);
@@ -228,12 +228,12 @@ public class SuggeterDataStructureBuilder {
         {
             if (chars[chars.length - 2] == 'e') {   //ends in es
                 pos = chars.length - 3;
-                if (pos == 2 || (chars[chars.length - 3] == 's' && chars[chars.length - 4] != 's' )) {              //to small: lines bikes holes ....has another s: diseases but not 2 ss: processes
+                if (pos == 2 || (chars[chars.length - 3] == 's' && chars[chars.length - 4] != 's')) {              //to small: lines bikes holes ....has another s: diseases but not 2 ss: processes
                     pos++;
                     remove_s = true;
                 }
             } else {
-                if (chars[chars.length - 2] == 'i' || chars[chars.length - 2] == 'u' ) {  //metastasis analysis ... fetus
+                if (chars[chars.length - 2] == 'i' || chars[chars.length - 2] == 'u') {  //metastasis analysis ... fetus
                     pos = -1;
                 } else {
                     pos = chars.length - 2;     //nope, just ends in s
