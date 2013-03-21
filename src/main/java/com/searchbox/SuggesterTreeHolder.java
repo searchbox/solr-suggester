@@ -53,6 +53,11 @@ public class SuggesterTreeHolder implements Serializable {
         headNode = new TrieNode("", ngrams);
         if (nonpruneFileName != null) {
             loadNonPruneWords(nonpruneFileName);
+            for(String np: nonprune){       //add words from file into list to ensure that they're visible
+                TrieNode node=this.AddString(np);
+                node.docfreq=10;        //random guess here....should be greater than zero
+                node.termfreq=10;
+            }
         }
     }
 
