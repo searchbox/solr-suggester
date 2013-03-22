@@ -55,6 +55,7 @@ public class SuggesterTreeHolder implements Serializable {
             loadNonPruneWords(nonpruneFileName);
             for(String np: nonprune){       //add words from file into list to ensure that they're visible
                 TrieNode node=this.AddString(np);
+                node.AddPhraseIncrementCount(np, .1);
                 node.docfreq=10;        //random guess here....should be greater than zero
                 node.termfreq=10;
             }
@@ -110,6 +111,11 @@ public class SuggesterTreeHolder implements Serializable {
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query, int maxPhraseSearch) {
         String[] queryTokens = query.split(" "); //TODO should use tokensizer..
         SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
+        
+        if(rs==null){ //didn't find it, bail early
+            return new SuggestionResultSet("",0);
+        }
+        
         rs.myval = "";
         LOGGER.debug("Doing 2nd part of equation");
         try {

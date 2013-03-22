@@ -118,7 +118,8 @@ public class TrieNode implements Serializable {
             if (current.containsChildValue(c)) {
                 current = current.getChild(c);
             } else {
-                break;
+                //not found?
+                return null;
             }
         }
         return current.recurse(current.nc.termnormfactor, maxnumphrases);
