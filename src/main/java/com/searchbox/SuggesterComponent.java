@@ -13,6 +13,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.apache.solr.common.SolrException;
@@ -52,7 +53,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     volatile long totalRequestsTime;
     volatile String lastbuildDate;
     SuggesterTreeHolder suggester;
-    protected List<String> fields;
+    protected String  gfields[];
     private boolean keystate = true;
 
     @Override
@@ -117,8 +118,15 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             maxNumDocs= SuggesterComponentParams.MAXNUMDOCS_DEFAULT;
         }
 
-        fields = ((NamedList) args.get(SuggesterComponentParams.FIELDS)).getAll(SuggesterComponentParams.FIELD);
-        if (fields == null) {
+        NamedList fields= ((NamedList) args.get(SuggesterComponentParams.FIELDS));
+        if(fields==null)
+        {
+                 throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
+                    "Need to specify at least one field");
+        }
+       
+        gfields = (String [])fields.getAll(SuggesterComponentParams.FIELD).toArray(new String[0]);
+        if (gfields == null) {
             throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
                     "Need to specify at least one field");
         }
@@ -130,7 +138,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         LOGGER.debug("buildOnOptimize is " + buildOnOptimize);
         LOGGER.debug("storeDirname is " + storeDirname);
         LOGGER.debug("Ngrams is " + ngrams);
-        LOGGER.debug("Fields is " + fields);
+        LOGGER.debug("Fields is " + gfields);
         LOGGER.debug("Nonprune file is " + nonpruneFileName);
 
     }
@@ -149,12 +157,23 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             return;
         }
         SolrParams params = rb.req.getParams();
-
+        String [] fields = params.getParams(SuggesterComponentParams.FIELDS+"."+SuggesterComponentParams.FIELD); 
+        
+        if(fields==null){
+            
+            fields=gfields;
+        }else
+        {
+            for(String field: fields){
+               LOGGER.info("Using overrode fields:"+field);
+        
+            }
+        }
         boolean build = params.getBool(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.BUILD, false);
         SolrIndexSearcher searcher = rb.req.getSearcher();
         if (build) {
             long lstartTime = System.currentTimeMillis();
-            buildAndWrite(searcher);
+            buildAndWrite(searcher,fields);
             totalBuildTime += System.currentTimeMillis() - lstartTime;
             lastbuildDate = new Date().toString();
         }
@@ -280,10 +299,10 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         } else {
             // newSearcher event
             if (buildOnCommit) {
-                buildAndWrite(newSearcher);
+                buildAndWrite(newSearcher,gfields);
             } else if (buildOnOptimize) {
                 if (newSearcher.getIndexReader().leaves().size() == 1) {
-                    buildAndWrite(newSearcher);
+                    buildAndWrite(newSearcher,gfields);
                 } else {
                     LOGGER.info("Index is not optimized therefore skipping building suggester index");
                 }
@@ -324,7 +343,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         return com.searchbox.utils.DecryptLicense.checkLicense(key, PRODUCT_KEY);
     }
 
-    private void buildAndWrite(SolrIndexSearcher searcher) {
+    private void buildAndWrite(SolrIndexSearcher searcher, String[] fields) {
         LOGGER.info("Building suggester model");
         SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName);
         suggester = sdsb.getSuggester();

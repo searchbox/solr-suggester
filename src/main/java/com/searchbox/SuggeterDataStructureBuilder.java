@@ -80,7 +80,7 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    private void iterateThroughDocuments(SolrIndexSearcher searcher, List<String> fields, int maxNumDocs) {
+    private void iterateThroughDocuments(SolrIndexSearcher searcher, String [] fields, int maxNumDocs) {
         IndexReader reader = searcher.getIndexReader();
         Bits liveDocs = MultiFields.getLiveDocs(reader); //WARNING: returns null if there are no deletions
 
@@ -127,7 +127,7 @@ public class SuggeterDataStructureBuilder {
 
         LOGGER.info("Number of documents analyzed: \t" + numdocs);
         for (int zz = 0; zz < counts.length; zz++) {
-            LOGGER.debug("Number of " + zz + "-grams: \t" + counts[zz]);
+            LOGGER.info("Number of " + zz + "-grams: \t" + counts[zz]);
         }
     }
 
@@ -135,7 +135,7 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, List<String> fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, String [] fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName) {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
