@@ -51,6 +51,8 @@ public class SuggesterTreeHolder implements Serializable {
     SuggesterTreeHolder(int NGRAMS, String nonpruneFileName) {
         ngrams = NGRAMS;
         headNode = new TrieNode("", ngrams);
+        nonprune = new HashSet<String>();
+        
         if (nonpruneFileName != null) {
             loadNonPruneWords(nonpruneFileName);
             for(String np: nonprune){       //add words from file into list to ensure that they're visible
@@ -108,7 +110,7 @@ public class SuggesterTreeHolder implements Serializable {
      //LOGGER.debug("Took (" + queryWord + " ) and put to ( " + token + ") ");
      return token;
      }*/
-    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, List<String> fields, String query, int maxPhraseSearch) {
+    SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, String [] fields, String query, int maxPhraseSearch) {
         String[] queryTokens = query.split(" "); //TODO should use tokensizer..
         SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
         
@@ -194,7 +196,6 @@ public class SuggesterTreeHolder implements Serializable {
     }
 
     private void loadNonPruneWords(String nonpruneFileName) {
-        nonprune = new HashSet<String>();
         BufferedReader in = null;
         if (nonpruneFileName == null) {
             return;
