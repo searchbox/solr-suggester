@@ -111,7 +111,7 @@ public class SuggesterTreeHolder implements Serializable {
      return token;
      }*/
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, String [] fields, String query, int maxPhraseSearch) {
-        String[] queryTokens = query.split(" "); //TODO should use tokensizer..
+        String[] queryTokens = query.replaceAll("[^A-Za-z0-9 ]", " ").replace("  ", " ").trim().split(" "); //TODO should use tokensizer..
         SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
         
         if(rs==null){ //didn't find it, bail early
@@ -132,13 +132,14 @@ public class SuggesterTreeHolder implements Serializable {
                     newrs.myval = newrs.myval + queryTokens[zz] + " ";
                     StringBuilder inner = new StringBuilder();
                     for (String field : fields) {
-                        inner.append(field + ":" + queryTokens[zz] + " ");
+                        String escaped_field=parser.escape(field);
+                        String escaped_token = parser.escape(queryTokens[zz]);
+                        inner.append(escaped_field + ":" +escaped_token  + " ");
                     }
                     if (inner.length() > 0) {
                         sb.append("+(" + inner + ")");
                     }
                 }
-
 
                 // LOGGER.info("SB query:\t" + sb.toString());
                 Query q = null;
@@ -146,6 +147,8 @@ public class SuggesterTreeHolder implements Serializable {
                     q = parser.parse(sb.toString());
                     //LOGGER.info("BQ1 query:\t" + q.toString());
                 } catch (Exception e) {
+                    e.printStackTrace();
+                    LOGGER.error("Error parsing query:\t"+sb.toString());
                 }
                 DocSet qd = searcher.getDocSet(q);
                 // LOGGER.info("Number of docs in set\t" + qd.size());
