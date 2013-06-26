@@ -149,6 +149,7 @@ public class SuggeterDataStructureBuilder {
         LOGGER.trace("Processing text:\t" + text);
         HashSet<String> seenTerms = new HashSet<String>();
         for (String sentence : getSentences(text)) {
+            sentence =SuggesterTreeHolder.deAccent(sentence);
             String[] tokens = getTokens(sentence.replaceAll("[^A-Za-z0-9 ]", " ")); //TODO: fix this part, its a bit of a hack but should be okay
             for (int zz = 0; zz < tokens.length; zz++) {
                 String localtoken = light_stem(tokens[zz]);
