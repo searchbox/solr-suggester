@@ -15,6 +15,8 @@ public class SuggesterComponentParams {
     public static String PRODUCT_NAME = "sbsuggester";
     public static String PRODUCT_KEY = "sug";
     public static final String COMPONENT_NAME = "sbsuggester";
+    public static final String STOP_WORD_LOCATION = "stopwordLocation";
+    public static final String STOP_WORD_LOCATION_DEFAULT = "/stopwords_for_suggestor.txt";
     public static final String BUILD_ON_OPTIMIZE = "buildOnOptimize";
     public static final String BUILD_ON_OPTIMIZE_DEFAULT = "false";
     public static final String BUILD_ON_COMMIT = "buildOnCommit";

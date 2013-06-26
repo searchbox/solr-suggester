@@ -27,6 +27,9 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Version;
 
+import java.text.Normalizer;
+import java.util.regex.Pattern;
+
 /**
  *
  * @author andrew
@@ -111,6 +114,7 @@ public class SuggesterTreeHolder implements Serializable {
      return token;
      }*/
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, String [] fields, String query, int maxPhraseSearch) {
+        query=deAccent(query);
         String[] queryTokens = query.replaceAll("[^A-Za-z0-9 ]", " ").replace("  ", " ").trim().split(" "); //TODO should use tokensizer..
         SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
         
@@ -216,5 +220,11 @@ public class SuggesterTreeHolder implements Serializable {
         } catch (Exception ex) {
             LOGGER.error("Error loading non-Prune words , format is word_string [newline]\t" + ex.getMessage());
         }
+    }
+
+    static public String deAccent(String str) {
+        String nfdNormalizedString = Normalizer.normalize(str, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfdNormalizedString).replaceAll("");
     }
 }
