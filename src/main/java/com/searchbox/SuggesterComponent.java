@@ -47,6 +47,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     protected Integer minTermFreq;
     protected Integer maxNumDocs;
     protected String nonpruneFileName;
+    protected String stopwordLocation;
     volatile long numRequests;
     volatile long numErrors;
     volatile long totalBuildTime;
@@ -116,6 +117,11 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         maxNumDocs= (Integer) args.get(SuggesterComponentParams.MAXNUMDOCS);
         if (maxNumDocs== null) {
             maxNumDocs= SuggesterComponentParams.MAXNUMDOCS_DEFAULT;
+        }
+        
+        stopwordLocation= (String) args.get(SuggesterComponentParams.STOP_WORD_LOCATION);
+        if (stopwordLocation== null) {
+            stopwordLocation= SuggesterComponentParams.STOP_WORD_LOCATION_DEFAULT;
         }
 
         NamedList fields= ((NamedList) args.get(SuggesterComponentParams.FIELDS));
@@ -345,7 +351,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void buildAndWrite(SolrIndexSearcher searcher, String[] fields) {
         LOGGER.info("Building suggester model");
-        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName);
+        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName, stopwordLocation);
         suggester = sdsb.getSuggester();
         sdsb=null;
         writeFile(storeDir);

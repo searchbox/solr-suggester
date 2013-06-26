@@ -5,6 +5,7 @@
 package com.searchbox;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -135,11 +136,11 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, String [] fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, String [] fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName, String stopwordsLocation) {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
-
+        stopWordsFileName=stopwordsLocation;
         init();
         iterateThroughDocuments(searcher, fields, maxNumDocs);
         computeNormalizers(minDocFreq, minTermFreq);
@@ -202,7 +203,15 @@ public class SuggeterDataStructureBuilder {
         stopwords = new HashSet<String>();
         BufferedReader in = null;
         try {
-            in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream("/" + stopWordsFileName))));
+            try{
+                in = new BufferedReader(new InputStreamReader(new FileInputStream(stopWordsFileName)));
+                LOGGER.info("For Stopwords using:\t"+stopWordsFileName);
+            }
+            catch(Exception ex){
+                LOGGER.info("Using Builtin stopwords (english default)");
+                in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream(stopWordsFileName))));
+            }
+            
             String line;
             while ((line = in.readLine()) != null) {
                 stopwords.add(line.trim().toLowerCase());
