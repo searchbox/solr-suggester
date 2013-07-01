@@ -128,7 +128,7 @@ public class SuggesterTreeHolder implements Serializable {
 
             if (queryTokens.length > 1) {
 
-                QueryParser parser = new QueryParser(Version.LUCENE_40, "contents", searcher.getCore().getSchema().getAnalyzer());
+                QueryParser parser = new QueryParser(Version.LUCENE_44, "contents", searcher.getCore().getLatestSchema().getAnalyzer());
 
                 SuggestionResultSet newrs = new SuggestionResultSet("", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
