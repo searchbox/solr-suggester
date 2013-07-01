@@ -4,18 +4,21 @@
  */
 package com.searchbox;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.tokenize.TokenizerME;
 import opennlp.tools.tokenize.TokenizerModel;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.MultiFields;
@@ -34,8 +37,9 @@ public class SuggeterDataStructureBuilder {
     private String sentenceDetectorModelName = "en-sent.bin";
     private TokenizerME tokenizer = null;
     private String tokenizerModelName = "en-token.bin";
-    private String stopWordsFileName = "stopwords_for_suggestor.txt";
     private HashSet<String> stopwords;
+    private Analyzer analyzer;
+    private String[] fields;
     public int NGRAMS;
     public int numdocs;
     public int counts[];
@@ -51,11 +55,29 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    public String[] getTokens(String fulltext) {
-        return tokenizer.tokenize(fulltext);
-    }
+//    public String[] getTokens(String fulltext) {
+//        return tokenizer.tokenize(fulltext);
+//    }
     /*------------*/
 
+     private String[] getTokens(String fulltext) {
+         LinkedList<String> tokens = new LinkedList<String>();
+        try {
+            TokenStream tokenStream = analyzer.tokenStream(fields[0], new StringReader(fulltext));
+            tokenStream.reset();
+            CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
+
+            while (tokenStream.incrementToken()) {
+                String token = charTermAttribute.toString();
+                tokens.add(token);
+            }
+
+        } catch (IOException ex) {
+            LOGGER.error("Failure reading tokens from stream", ex);
+        }
+        return tokens.toArray(new String[0]);
+    }
+    
     /*------------*/
     public void SentenceParser(String filename_model) throws FileNotFoundException {
         InputStream modelIn = (getClass().getResourceAsStream("/" + filename_model));
@@ -75,7 +97,6 @@ public class SuggeterDataStructureBuilder {
         try {
             SentenceParser(sentenceDetectorModelName);
             Tokenizer(tokenizerModelName);
-            loadStopWords(stopWordsFileName);
         } catch (FileNotFoundException ex) {
             LOGGER.error("File not found", ex);
         }
@@ -136,11 +157,13 @@ public class SuggeterDataStructureBuilder {
         return suggester;
     }
 
-    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, String [] fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName, String stopwordsLocation) {
+    SuggeterDataStructureBuilder(SolrIndexSearcher searcher, String [] fields, int ngrams, int minDocFreq, int minTermFreq, int maxNumDocs, String nonpruneFileName, List<String> stopWords) {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
-        stopWordsFileName=stopwordsLocation;
+        analyzer= searcher.getCore().getSchema().getAnalyzer();
+        this.stopwords = new HashSet<String>(stopWords);
+        this.fields=fields;
         init();
         iterateThroughDocuments(searcher, fields, maxNumDocs);
         computeNormalizers(minDocFreq, minTermFreq);
@@ -150,14 +173,13 @@ public class SuggeterDataStructureBuilder {
         LOGGER.trace("Processing text:\t" + text);
         HashSet<String> seenTerms = new HashSet<String>();
         for (String sentence : getSentences(text)) {
-            sentence =SuggesterTreeHolder.deAccent(sentence);
-            String[] tokens = getTokens(sentence.replaceAll("[^A-Za-z0-9 ]", " ")); //TODO: fix this part, its a bit of a hack but should be okay
+            String [] tokens = getTokens(sentence);
             for (int zz = 0; zz < tokens.length; zz++) {
-                String localtoken = light_stem(tokens[zz]);
+                String localtoken = tokens[zz];
                 if (stopwords.contains(localtoken)) {     //TODO: should do a skip gram, but we'll look into that later SBSUGGEST-3
                     continue;
                 }
-
+                
                 TrieNode tokenNode = suggester.AddString(localtoken);
                 counts[0]++;
 
@@ -179,7 +201,6 @@ public class SuggeterDataStructureBuilder {
                         break;
                     }
                     String localtoken_2 = tokens[yy];
-                    localtoken_2 = light_stem(localtoken_2);
                     sb.append(" " + localtoken_2);
                     //LOGGER.info(numterms+"\t"+sb);
                     if (stopwords.contains(localtoken_2)) { //president of
@@ -199,7 +220,7 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    private void loadStopWords(String stopWordsFileName) {
+    /*private void loadStopWords(String stopWordsFileName) {
         stopwords = new HashSet<String>();
         BufferedReader in = null;
         try {
@@ -220,13 +241,13 @@ public class SuggeterDataStructureBuilder {
         } catch (Exception ex) {
             LOGGER.error("Error loading stopwords\t" + ex.getMessage());
         }
-    }
+    }*/
 
     private void computeNormalizers(int minDocFreq, int minTermFreq) {
         suggester.computeNormalizers(numdocs, minDocFreq, minTermFreq);
     }
 
-    private String light_stem(String tokenin) {
+   /* private String light_stem(String tokenin) {
         char[] chars = tokenin.toCharArray();
         int pos = -1;
         if (chars.length <= 3) { // to small, just return it
@@ -257,5 +278,5 @@ public class SuggeterDataStructureBuilder {
         }
 
         return tokenin;
-    }
+    } */
 }

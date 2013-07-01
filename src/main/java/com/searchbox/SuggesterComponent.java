@@ -7,15 +7,25 @@ package com.searchbox;
 import com.searchbox.SuggestionResultSet.SuggestionResult;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import org.apache.lucene.analysis.core.StopFilter;
+import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.analysis.util.CharFilterFactory;
+import org.apache.lucene.analysis.util.ResourceLoader;
+import org.apache.lucene.analysis.util.ResourceLoaderAware;
+import org.apache.lucene.analysis.util.TokenFilterFactory;
+import org.apache.lucene.analysis.util.WordlistLoader;
+import org.apache.lucene.util.IOUtils;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.SolrParams;
@@ -47,16 +57,18 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     protected Integer minTermFreq;
     protected Integer maxNumDocs;
     protected String nonpruneFileName;
-    protected String stopwordLocation;
+    protected ResourceLoader resouceloader;
+    protected String stopWordFile;
     volatile long numRequests;
     volatile long numErrors;
     volatile long totalBuildTime;
     volatile long totalRequestsTime;
     volatile String lastbuildDate;
+    
     SuggesterTreeHolder suggester;
     protected String  gfields[];
     private boolean keystate = true;
-
+    private List<String> stopwords;
     @Override
     public void init(NamedList args) {
         LOGGER.debug(("Hit init"));
@@ -97,6 +109,11 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             storeDirname = SuggesterComponentParams.STOREDIR_DEFAULT;
         }
         
+        stopWordFile = (String) args.get(SuggesterComponentParams.STOP_WORD_LOCATION);
+        if (stopWordFile == null) {
+            stopWordFile = SuggesterComponentParams.STOP_WORD_LOCATION_DEFAULT;
+        }
+        
         nonpruneFileName = (String) args.get(SuggesterComponentParams.NONPRUNEFILE);
         
         ngrams = (Integer) args.get(SuggesterComponentParams.NGRAMS);
@@ -119,11 +136,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             maxNumDocs= SuggesterComponentParams.MAXNUMDOCS_DEFAULT;
         }
         
-        stopwordLocation= (String) args.get(SuggesterComponentParams.STOP_WORD_LOCATION);
-        if (stopwordLocation== null) {
-            stopwordLocation= SuggesterComponentParams.STOP_WORD_LOCATION_DEFAULT;
-        }
-
         NamedList fields= ((NamedList) args.get(SuggesterComponentParams.FIELDS));
         if(fields==null)
         {
@@ -223,10 +235,10 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         totalRequestsTime += System.currentTimeMillis() - lstartTime;
     }
 
+    @Override
     public void inform(SolrCore core) {
         LOGGER.trace(("Hit inform"));
-
-
+        loadStopWords(core.getResourceLoader());
         if (storeDirname != null) {
             storeDir = new File(storeDirname);
             if (!storeDir.isAbsolute()) {
@@ -351,10 +363,36 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void buildAndWrite(SolrIndexSearcher searcher, String[] fields) {
         LOGGER.info("Building suggester model");
-        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName, stopwordLocation);
+        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName, stopwords);
         suggester = sdsb.getSuggester();
         sdsb=null;
         writeFile(storeDir);
         LOGGER.info("Done building and storing suggester model");
+    }
+
+    
+    public void loadStopWords(ResourceLoader rl) {
+        BufferedReader in = null;
+        try {
+            try {
+                stopwords = getLines(rl, stopWordFile.trim());
+                LOGGER.info("Using custom stopwords:\t"+stopWordFile);
+                return;
+            } catch (Exception ex) {
+                LOGGER.info("Using Builtin stopwords (english default)");
+                in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream(stopWordFile))));
+            }
+            String line;
+            while ((line = in.readLine()) != null) {
+                stopwords.add(line.trim().toLowerCase());
+            }
+            in.close();
+        } catch (Exception ex) {
+            LOGGER.error("Error loading stopwords\t" + ex.getMessage());
+        }
+    }
+    
+    protected final List<String> getLines(ResourceLoader loader, String resource) throws IOException {
+        return WordlistLoader.getLines(loader.openResource(resource), IOUtils.CHARSET_UTF_8);
     }
 }
