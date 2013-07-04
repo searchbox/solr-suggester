@@ -161,7 +161,7 @@ public class SuggeterDataStructureBuilder {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
-        analyzer= searcher.getCore().getSchema().getAnalyzer();
+        analyzer= searcher.getCore().getLatestSchema().getAnalyzer();
         this.stopwords = new HashSet<String>(stopWords);
         this.fields=fields;
         init();
