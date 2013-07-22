@@ -68,7 +68,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     SuggesterTreeHolder suggester;
     protected String  gfields[];
     private boolean keystate = true;
-    private List<String> stopwords;
+    private List<String> stopwords = new ArrayList<String>();
+   
+    
     @Override
     public void init(NamedList args) {
         LOGGER.debug(("Hit init"));
@@ -363,32 +365,33 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     private void buildAndWrite(SolrIndexSearcher searcher, String[] fields) {
         LOGGER.info("Building suggester model");
-        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq,maxNumDocs, nonpruneFileName, stopwords);
+        SuggeterDataStructureBuilder sdsb = new SuggeterDataStructureBuilder(searcher, fields, ngrams, minDocFreq, minTermFreq, maxNumDocs, nonpruneFileName, stopwords);
         suggester = sdsb.getSuggester();
-        sdsb=null;
+        sdsb = null;
         writeFile(storeDir);
         LOGGER.info("Done building and storing suggester model");
     }
 
-    
     public void loadStopWords(ResourceLoader rl) {
         BufferedReader in = null;
         try {
-            try {
-                stopwords = getLines(rl, stopWordFile.trim());
-                LOGGER.info("Using custom stopwords:\t"+stopWordFile);
-                return;
-            } catch (Exception ex) {
-                LOGGER.info("Using Builtin stopwords (english default)");
-                in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream(stopWordFile))));
-            }
+            LOGGER.info("Trying to use custom stopwords:\t" + stopWordFile);
+            stopwords = getLines(rl, stopWordFile.trim());
+            return;
+        } catch (Exception ex) {
+            LOGGER.info("Error using custom stopwords");
+        }
+        
+        try {
+            LOGGER.info("Using Builtin stopwords (english default)");
+            in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream(stopWordFile))));
             String line;
             while ((line = in.readLine()) != null) {
                 stopwords.add(line.trim().toLowerCase());
             }
             in.close();
         } catch (Exception ex) {
-            LOGGER.error("Error loading stopwords\t" + ex.getMessage());
+            LOGGER.info("Error loading stopwords: " + ex.getMessage());
         }
     }
     
