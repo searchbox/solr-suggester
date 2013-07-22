@@ -391,7 +391,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             }
             in.close();
         } catch (Exception ex) {
-            LOGGER.info("Error loading stopwords: " + ex.getMessage());
+            LOGGER.error("Error loading stopwords: " + ex.getMessage());
         }
     }
     
