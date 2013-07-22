@@ -161,7 +161,9 @@ public class SuggeterDataStructureBuilder {
         NGRAMS = ngrams;
         counts = new int[NGRAMS];
         suggester = new SuggesterTreeHolder(NGRAMS, nonpruneFileName);
+        // Solr 4.4 method change
         analyzer= searcher.getCore().getLatestSchema().getAnalyzer();
+        //analyzer= searcher.getCore().getSchema().getAnalyzer();
         this.stopwords = new HashSet<String>(stopWords);
         this.fields=fields;
         init();

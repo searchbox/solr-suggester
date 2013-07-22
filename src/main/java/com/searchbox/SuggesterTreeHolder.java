@@ -128,7 +128,9 @@ public class SuggesterTreeHolder implements Serializable {
 
             if (queryTokens.length > 1) {
 
+                // Solr 4.4 method change
                 QueryParser parser = new QueryParser(Version.LUCENE_44, "contents", searcher.getCore().getLatestSchema().getAnalyzer());
+                //QueryParser parser = new QueryParser(Version.LUCENE_43, "contents", searcher.getCore().getSchema().getAnalyzer());
 
                 SuggestionResultSet newrs = new SuggestionResultSet("", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
