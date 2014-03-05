@@ -17,28 +17,28 @@ Getting Started
 Add the following request handler to the appropriate solrconfig.xml:
 
 ```xml
-	<searchComponent class="com.searchbox.SuggesterComponent" name="sbsuggest">
-        <lst name="fields">
-            <str name="field">article-title</str>
-			<str name="field">article-abstract</str>
-        </lst>
-        <int name="ngrams">3</int>
-        <str name="buildOnCommit">true</str>
-		<str name="buildOnOptimize">true</str>
-        <str name="storeDir">sbsuggest</str>
-		<int name="maxNumDocs">50000</int>
-		<int name="minDocFreq">2</int>
-		<int name="minTermFreq">2</int>
-	</searchComponent>
+<searchComponent class="com.searchbox.SuggesterComponent" name="sbsuggest">
+    <lst name="fields">
+        <str name="field">article-title</str>
+		<str name="field">article-abstract</str>
+    </lst>
+    <int name="ngrams">3</int>
+    <str name="buildOnCommit">true</str>
+	<str name="buildOnOptimize">true</str>
+    <str name="storeDir">sbsuggest</str>
+	<int name="maxNumDocs">50000</int>
+	<int name="minDocFreq">2</int>
+	<int name="minTermFreq">2</int>
+</searchComponent>
 ```
 
 We will explain the meaning and usage of the various parameters:
 
 ```xml
-	<lst name="fields">
-		<str name="field">article-title</str>
-		<str name="field">article-abstract</str>
-	</lst>
+<lst name="fields">
+	<str name="field">article-title</str>
+	<str name="field">article-abstract</str>
+</lst>
 ```
 
 We need to define the schema fields which will be used for the creation of the possible
@@ -46,7 +46,7 @@ phrase suggestions. Analysis of these fields requires that they are Stored=true 
 the raw full text is available. The list can contain one or more fields.
 
 ```xml
-	<int name="ngrams">3</int>
+<int name="ngrams">3</int>
 ```
 
 This parameter specifies the maximum number of words which could possibly used for
@@ -58,8 +58,8 @@ Typically this value is set to 3. Higher values can be used but the memory and r
 required to produce the necessary files grows exponentially, so beware!
 
 ```xml
-	<str name="buildOnCommit">true</str>
-	<str name="buildOnOptimize">true</str>
+<str name="buildOnCommit">true</str>
+<str name="buildOnOptimize">true</str>
 ```
 
 These options define if the suggester model should be (re)build upon a solr commit or
@@ -69,7 +69,7 @@ production systems.  For large indexes, one commit may take minutes since the bu
 suggester model is single threaded. Typically one uses buildOnOptimize or explicit build instead.
 
 ```xml
-	<str name="storeDir">sbsuggest</str>
+<str name="storeDir">sbsuggest</str>
 ```
 
 This is the directory where the serialied model will be stored. It can be either an aboslute
@@ -77,7 +77,7 @@ directory (starting with "/") or a relative directory to Solr's data directory. 
 path doesn't exist, the necessary directories are created so it is valid.
 
 ```xml
-	<int name="maxNumDocs">50000</int>
+<int name="maxNumDocs">50000</int>
 ```
 
 The maximum number of doucments to analyze to produce the suggestion model. If set to -1, then
@@ -86,8 +86,8 @@ are required to compute and store. Using 150,000 documents requires around 8GB o
 for computation (much less for storage and actual usage).
 	
 ```xml
-	<int name="minDocFreq">2</int>
-	<int name="minTermFreq">2</int>
+<int name="minDocFreq">2</int>
+<int name="minTermFreq">2</int>
 ```
 
 These two parameters put a limit on the phrases which are considered acceptable. In this
@@ -106,18 +106,18 @@ installation of Solr and their demonstration of the spell checker). To do this
 simply add to solrconfig.xml:
 
 ```xml
-	<requestHandler name="/sbsuggest" class="solr.SearchHandler">
-		<arr name="last-components">
-			<str>sbsuggest</str>
-		</arr>
-	</requestHandler>
+<requestHandler name="/sbsuggest" class="solr.SearchHandler">
+	<arr name="last-components">
+		<str>sbsuggest</str>
+	</arr>
+</requestHandler>
 ```
 
 The following are acceptable URL (and thus configuration) options which
 can be set:
 
 ```xml
-	sbsuggester.build=true
+sbsuggester.build=true
 ```
 
 THIS IS REQUIRED upon first running to create the model, especially if buildOnOptimize
@@ -127,7 +127,7 @@ in the Solr Log. Given the size of the repository and processor power of the mac
 this can take from a few seconds to a few minutes.
 
 ```xml
-    sbsuggester.q
+sbsuggester.q
 ```
 
 Similar to the Solr spell checker, this parameter overrides the common q parameter, thus
@@ -135,13 +135,13 @@ we make a suggestion based on this field if it is set, otherwise we make a sugge
 based on the standard q="...." 
 	
 ```xml
-    sbsuggester.count
+sbsuggester.count
 ```
 
 Defines the number of possible suggestions to return. The default is 5
 
 ```xml
-    sbsuggester.mps 
+sbsuggester.mps 
 ```
 
 Defines the number of possible phrases to analyze, Default is 100. Since suggesters require
