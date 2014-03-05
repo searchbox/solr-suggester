@@ -8,13 +8,29 @@
   <packaging>jar</packaging>
 
   <name>solr-suggester</name>
-  <url>http://maven.apache.org</url>
-
+  <url>http:/www.searchbox.com</url>
+  <description>Solr-Suggester is a Solr search component to add out-of-the-box high quality Suggestions to search queries.</description>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  
+  
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <solr.version>4.7.0</solr.version>
   </properties>
 
+  <developers>
+    <developer>
+      <id>andrew</id>
+      <name>Andrew Janowczyk</name>
+      <email>andrew.janowczyk@searchbox.com</email>
+    </developer>
+  </developers>
 
   <dependencies>
     <dependency>
