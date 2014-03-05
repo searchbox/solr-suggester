@@ -14,33 +14,26 @@ them in the Solr response. We have taken great care to ensure that
 the parameters and workflow are very similar to the Solr Suggester so
 that a low learning curve and rapid installation are possible.
 
-We recommend you head over to our website and register your email 
-address to receive notifications about software updates and 
-new products. We're rolling out additional tools for different 
-domains in the coming months, so stay tuned!
-
 Getting Started
 ---------------
 Add the following request handler to the appropriate solrconfig.xml:
 
 
 	<searchComponent class="com.searchbox.SuggesterComponent" name="sbsuggest">
-            <lst name="fields">
-                <str name="field">article-title</str>
-				<str name="field">article-abstract</str>
-            </lst>
-            <int name="ngrams">3</int>
-            <str name="buildOnCommit">true</str>
-			<str name="buildOnOptimize">true</str>
-            <str name="storeDir">sbsuggest</str>
-			<str name="key">YOUR_PRODUCT_KEY</str>
-			<int name="maxNumDocs">50000</int>
-			<int name="minDocFreq">2</int>
-			<int name="minTermFreq">2</int>
+        <lst name="fields">
+            <str name="field">article-title</str>
+			<str name="field">article-abstract</str>
+        </lst>
+        <int name="ngrams">3</int>
+        <str name="buildOnCommit">true</str>
+		<str name="buildOnOptimize">true</str>
+        <str name="storeDir">sbsuggest</str>
+		<int name="maxNumDocs">50000</int>
+		<int name="minDocFreq">2</int>
+		<int name="minTermFreq">2</int>
 	</searchComponent>
 	
 We will explain the meaning and usage of the various parameters:
-
 
 	<lst name="fields">
 		<str name="field">article-title</str>
@@ -89,16 +82,10 @@ for computation (much less for storage and actual usage).
 These two parameters put a limit on the phrases which are considered acceptable. In this
 case we specify that a phrase must appear in at least 2 documents and must appear in total
 at least twice. The higher the number, the less phrases will be modeled and thus require
-notably less processing time and resources. Considering that the suggestion is a probablistic
+notably less processing time and resources. Considering that the suggestion is a probabilistic
 model, if it is known that there are many phrases which appear very infrequently and
 don't have a high recall value, putting these numbers higher will result in gained performance.
 The default is 2 for each and gives very well represented results.
-	
-	<str name="key">YOUR_PRODUCT_KEY</str>
-
-Of course you'll need to replace YOUR_PRODUCT_KEY from the product key you obtained
-at www.searchbox.com or by emailing contact@searchbox.com
-
 			
 Usage Of Search Component
 ---------------
@@ -145,7 +132,6 @@ perfectly reasonable. Feel free to lower the number for greater performance.
 
 
 
-
 Understanding the results
 ----------------------------
 
@@ -173,11 +159,10 @@ http://192.168.56.101:8982/pubmed/sbsuggest?q=prot&wt=xml
 We can see that we have asked for suggestions to the word "pro" using a
 pubmed dataset (a medical research publication repository). As expected
 we see see a list of responses in the sbsuggester xml object. The name
-of the entity is associated with its probablistic score. Of course since
+of the entity is associated with its probabilistic score. Of course since
 there are many possible suggestions which begin with "pro", the probabilities
 will typically be very small, but of greater importance is the order.
 The responses which appear higher in the list are of greater chance (and
 therefore quality) as a suggestion to the query.
 
 Enjoy!
-

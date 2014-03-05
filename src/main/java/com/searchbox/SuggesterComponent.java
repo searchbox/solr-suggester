@@ -67,7 +67,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     
     SuggesterTreeHolder suggester;
     protected String  gfields[];
-    private boolean keystate = true;
     private List<String> stopwords = new ArrayList<String>();
    
     
@@ -77,24 +76,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
         super.init(args);
         this.initParams = args;
-
-
-        LOGGER.trace("Checking license");
-        /*--------LICENSE CHECK ------------ */
-        String key = (String) args.get("key");
-        if (key == null) {
-            keystate = false;
-            throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
-                    "Need to specify license key using <str name=\"key\"></str>.\n If you don't have a key email contact@searchbox.com to obtain one.");
-        }
-        if (!checkLicense(key, SuggesterComponentParams.PRODUCT_KEY)) {
-            keystate = false;
-            throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
-                    "License key is not valid for this product, email contact@searchbox.com to obtain one.");
-        }
-
-        LOGGER.trace("Done checking license");
-        /*--------END LICENSE CHECK ------------ */
 
         buildOnOptimize = Boolean.parseBoolean((String) args.get(SuggesterComponentParams.BUILD_ON_OPTIMIZE));
         if (buildOnOptimize == null) {
@@ -171,11 +152,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     @Override
     public void process(ResponseBuilder rb) throws IOException {
         LOGGER.trace(("Hit process"));
-        if (!keystate) {
-            LOGGER.error("License key failure, no performing suggestion. Please email contact@searchbox.com for more information.");
-            numErrors++;
-            return;
-        }
         SolrParams params = rb.req.getParams();
         String [] fields = params.getParams(SuggesterComponentParams.FIELDS+"."+SuggesterComponentParams.FIELD); 
         
@@ -357,10 +333,6 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
             LOGGER.error("There was a problem with load model from disk. Suggester will not work unless build=true option is passed. Stack Message: " + e.getMessage());
         }
         LOGGER.info("Done reading object from file");
-    }
-
-    private boolean checkLicense(String key, String PRODUCT_KEY) {
-        return com.searchbox.utils.DecryptLicense.checkLicense(key, PRODUCT_KEY);
     }
 
     private void buildAndWrite(SolrIndexSearcher searcher, String[] fields) {
