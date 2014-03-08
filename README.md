@@ -12,6 +12,11 @@ them in the Solr response. We have taken great care to ensure that
 the parameters and workflow are very similar to the Solr Suggester so
 that a low learning curve and rapid installation are possible.
 
+This Solr plugin is based on the research paper "Query Suggestions in 
+the Absence of Query Logs" (see folder resources) written by Sumit Bhatia,
+Debapriyo Majumdar and Prasenjit Mitra.
+
+
 Getting Started
 ---------------
 Add the following request handler to the appropriate solrconfig.xml:
