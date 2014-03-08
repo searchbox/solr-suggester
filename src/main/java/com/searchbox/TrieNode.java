@@ -22,184 +22,207 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * 
  * @author andrew
  */
 public class TrieNode implements Serializable {
 
-    static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
-    private static Logger LOGGER = LoggerFactory.getLogger(TrieNode.class);
-    private HashMap<Character, TrieNode> children;
-    private HashMap<String, Double> phrases;
-    public long termfreq = 0;
-    public long docfreq = 0;
-    NormalizeCount nc;
-    private int ngram;
-    private int numdocs;
-    String myval;
+	static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
+	private static Logger LOGGER = LoggerFactory.getLogger(TrieNode.class);
+	private HashMap<Character, TrieNode> children;
+	private HashMap<String, Double> phrases;
+	public long termfreq = 0;
+	public long docfreq = 0;
+	NormalizeCount nc;
+	private int ngram;
+	private int numdocs;
+	String myval;
 
-    public TrieNode(String prefix, int NGRAM) {
-        this.myval = prefix;
-        ngram = NGRAM;
-    }
+	public TrieNode(String prefix, int NGRAM) {
+		this.myval = prefix;
+		ngram = NGRAM;
+	}
 
-    public boolean containsChildValue(char c) {
-        if (children == null) {
-            return false;
-        }
-        return children.containsKey(c);
-    }
+	public boolean containsChildValue(char c) {
+		if (children == null) {
+			return false;
+		}
+		return children.containsKey(c);
+	}
 
-    public TrieNode getChild(char c) {
-        return children.get(c);
-    }
+	public TrieNode getChild(char c) {
+		return children.get(c);
+	}
 
-    public void addNode(char c, TrieNode t) {
-        if (children == null) {
-            children = new HashMap<Character, TrieNode>();
-        }
-        children.put(c, t);
-    }
+	public void addNode(char c, TrieNode t) {
+		if (children == null) {
+			children = new HashMap<Character, TrieNode>();
+		}
+		children.put(c, t);
+	}
 
-    public double AddPhraseIncrementCount(String phrase, double defvalue) {
-        if (phrases == null) {
-            phrases = new HashMap<String, Double>();
-        }
-        Double count = phrases.containsKey(phrase) ? phrases.get(phrase) : defvalue;
-        phrases.put(phrase, count + 1);
-        return count + 1;
+	public double AddPhraseIncrementCount(String phrase, double defvalue) {
+		if (phrases == null) {
+			phrases = new HashMap<String, Double>();
+		}
+		Double count = phrases.containsKey(phrase) ? phrases.get(phrase)
+				: defvalue;
+		phrases.put(phrase, count + 1);
+		return count + 1;
 
-    }
+	}
 
-    public TrieNode AddString(String val) {
-        TrieNode head = this;
-        for (char c : val.toCharArray()) {
-            if (head.containsChildValue(c)) {
-                head = head.getChild(c);
-            } else {
-                TrieNode temp = this;
-                temp = new TrieNode(head.myval + c, ngram);
-                head.addNode(c, temp);
-                head = temp;
-                temp = null; //mem-leak-check
-            }
-        }
-        return head;
-    }
+	public TrieNode AddString(String val) {
+		TrieNode head = this;
+		for (char c : val.toCharArray()) {
+			if (head.containsChildValue(c)) {
+				head = head.getChild(c);
+			} else {
+				TrieNode temp = this;
+				temp = new TrieNode(head.myval + c, ngram);
+				head.addNode(c, temp);
+				head = temp;
+				// mem-leak-check
+				temp = null;
+			}
+		}
+		return head;
+	}
 
-    public NormalizeCount computeNormalizeTerm(int level, int numdocs) {
-        if (nc == null) {
-            nc = new NormalizeCount(this.ngram);
-        }
-        // Logger.info("level\t"+level);
-        if (docfreq > 0) { ///normolization as according to equation (10)
-            this.numdocs = numdocs;
-            nc.termnormfactor += termfreq * Math.log10((numdocs * 1.0) / docfreq);
-        }
-        doPhraseTotalFreq();
-        if (children != null) {
-            for (TrieNode child : children.values()) {
-                NormalizeCount lnc = child.computeNormalizeTerm(level + 1, numdocs);
-                nc.add(lnc);
-            }
-        }
-        return nc;
-    }
+	public NormalizeCount computeNormalizeTerm(int level, int numdocs) {
+		if (nc == null) {
+			nc = new NormalizeCount(this.ngram);
+		}
+		// Logger.info("level\t"+level);
+		// normolization as according to equation (10)
+		if (docfreq > 0) {
+			this.numdocs = numdocs;
+			nc.termnormfactor += termfreq
+					* Math.log10((numdocs * 1.0) / docfreq);
+		}
+		doPhraseTotalFreq();
+		if (children != null) {
+			for (TrieNode child : children.values()) {
+				NormalizeCount lnc = child.computeNormalizeTerm(level + 1,
+						numdocs);
+				nc.add(lnc);
+			}
+		}
+		return nc;
+	}
 
-    private void doPhraseTotalFreq() {
-        if (phrases != null) {
-            for (Double f : phrases.values()) {
-                int gram = (int) (Math.round((f - Math.floor(f)) * 10.0) - 1); // check right side of decimal to get ngram
-                nc.ngramfreq[gram] += Math.floor(f);
-                nc.ngramnum[gram]++; //compute total number of n-gram seen
-            }
-        }
+	private void doPhraseTotalFreq() {
+		if (phrases != null) {
+			for (Double f : phrases.values()) {
+				// check right side of decimal to get ngram
+				int gram = (int) (Math.round((f - Math.floor(f)) * 10.0) - 1);
+				nc.ngramfreq[gram] += Math.floor(f);
+				// compute total number of n-gram seen
+				nc.ngramnum[gram]++;
+			}
+		}
 
-    }
+	}
 
-    SuggestionResultSet computeQt(String partialToken, int maxnumphrases) {
-        TrieNode current = this;
-        for (char c : partialToken.toCharArray()) {
-            if (current.containsChildValue(c)) {   //compute Q_T as per equation (1)
-                current = current.getChild(c);
-            } else {
-                //not found?
-                return null;
-            }
-        }
-        return current.recurse(current.nc.termnormfactor, maxnumphrases);
-    }
+	SuggestionResultSet computeQt(String partialToken, int maxnumphrases) {
+		TrieNode current = this;
+		for (char c : partialToken.toCharArray()) {
+			// compute Q_T as per equation (1)
+			if (current.containsChildValue(c)) {
+				current = current.getChild(c);
+			} else {
+				// not found?
+				return null;
+			}
+		}
+		return current.recurse(current.nc.termnormfactor, maxnumphrases);
+	}
 
-    private SuggestionResultSet recurse(double termnormfactor, int maxnumphrases) {
-        SuggestionResultSet srs = new SuggestionResultSet(myval, maxnumphrases);
-        if (phrases != null && phrases.size() > 0) { //this term exists as a whole
-            double p_ci_qt = (termfreq * Math.log10((1.0 * numdocs) / (docfreq))) / (termnormfactor);
-            srs.add(phrases, p_ci_qt, nc.phrasenormfactor);//add his phrases and whatnot            
-        }
-        if (children != null) {
-            for (TrieNode child : children.values()) { //this term also exists as a partial
-                srs.add(child.recurse(termnormfactor, maxnumphrases));
-            }
-        }
-        return srs;
-    }
+	private SuggestionResultSet recurse(double termnormfactor, int maxnumphrases) {
+		SuggestionResultSet srs = new SuggestionResultSet(myval, maxnumphrases);
 
-    void computeNormalizePhrase(double[] logavgfreq) {
-        if (phrases != null) {
-            for (String phrase : phrases.keySet()) {
-                //Logger.info(phrase + "\t" + phrases.get(phrase));
+		// this term exists as a whole
+		if (phrases != null && phrases.size() > 0) {
+			double p_ci_qt = (termfreq * Math
+					.log10((1.0 * numdocs) / (docfreq))) / (termnormfactor);
+			// add his phrases and whatnot
+			srs.add(phrases, p_ci_qt, nc.phrasenormfactor);
+		}
+		if (children != null) {
 
-                double val = phrases.get(phrase); //normalization as per equation (11)
-                int gram = (int) Math.round((val - Math.floor(val)) * 10.0) - 1;
-                double newval = Math.floor(val) / logavgfreq[gram];
-                nc.phrasenormfactor += newval;
-                phrases.put(phrase, newval);
-            }
-        }
-        if (children != null) {
-            for (TrieNode child : children.values()) {
-                child.computeNormalizePhrase(logavgfreq);
-            }
-        }
-        //return nc;
-    }
+			// this term also exists as a partial
+			for (TrieNode child : children.values()) {
+				srs.add(child.recurse(termnormfactor, maxnumphrases));
+			}
+		}
+		return srs;
+	}
 
-    void prune(int minDocFreq, int minTermFreq, HashSet<String> nonprune) {  //after creating the tree its massive, and most likely filled with a lot of junk, so we iterate thorugh all of it and look for things with low counts and remove them
-        if (!nonprune.contains(myval) && (this.termfreq < minTermFreq || this.docfreq < minDocFreq)) { //we're not going to remove it if it comes from the file
-            this.termfreq = 0;
-            this.docfreq = 0;
-            phrases = null; // no term, no phrases
-        }
+	void computeNormalizePhrase(double[] logavgfreq) {
+		if (phrases != null) {
+			for (String phrase : phrases.keySet()) {
+				// Logger.info(phrase + "\t" + phrases.get(phrase));
 
+				// normalization as per equation (11)
+				double val = phrases.get(phrase);
+				int gram = (int) Math.round((val - Math.floor(val)) * 10.0) - 1;
+				double newval = Math.floor(val) / logavgfreq[gram];
+				nc.phrasenormfactor += newval;
+				phrases.put(phrase, newval);
+			}
+		}
+		if (children != null) {
+			for (TrieNode child : children.values()) {
+				child.computeNormalizePhrase(logavgfreq);
+			}
+		}
+		// return nc;
+	}
 
-        if (children != null) {
-            for (TrieNode child : children.values()) {
-                child.prune(minDocFreq, minTermFreq, nonprune);
-            }
-        }
-    }
+	/**
+	 * after creating the tree its massive, and most likely filled with a lot of
+	 * junk, so we iterate thorugh all of it and look for things with low counts
+	 * and remove them
+	 */
+	void prune(int minDocFreq, int minTermFreq, HashSet<String> nonprune) {
 
-    public class NormalizeCount implements Serializable {
+		// we're not going to remove it if it comes from the file
+		if (!nonprune.contains(myval)
+				&& (this.termfreq < minTermFreq || this.docfreq < minDocFreq)) {
+			this.termfreq = 0;
+			this.docfreq = 0;
+			// no term, no phrases
+			phrases = null;
+		}
 
-        static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
-        public double termnormfactor = 0;
-        public double phrasenormfactor = 0;
-        public double ngramnum[];
-        public double ngramfreq[];
+		if (children != null) {
+			for (TrieNode child : children.values()) {
+				child.prune(minDocFreq, minTermFreq, nonprune);
+			}
+		}
+	}
 
-        public NormalizeCount(int NGRAM) {
-            ngramnum = new double[NGRAM];
-            ngramfreq = new double[NGRAM];
-        }
+	public class NormalizeCount implements Serializable {
 
-        public void add(NormalizeCount in) {
-            if (in != null) {
-                this.termnormfactor += in.termnormfactor;
-                for (int zz = 0; zz < ngramnum.length; zz++) {
-                    ngramfreq[zz] += in.ngramfreq[zz];
-                    ngramnum[zz] += in.ngramnum[zz];
-                }
-            }
-        }
-    }
+		static final long serialVersionUID = SuggesterComponentParams.serialVersionUID;
+		public double termnormfactor = 0;
+		public double phrasenormfactor = 0;
+		public double ngramnum[];
+		public double ngramfreq[];
+
+		public NormalizeCount(int NGRAM) {
+			ngramnum = new double[NGRAM];
+			ngramfreq = new double[NGRAM];
+		}
+
+		public void add(NormalizeCount in) {
+			if (in != null) {
+				this.termnormfactor += in.termnormfactor;
+				for (int zz = 0; zz < ngramnum.length; zz++) {
+					ngramfreq[zz] += in.ngramfreq[zz];
+					ngramnum[zz] += in.ngramnum[zz];
+				}
+			}
+		}
+	}
 }
