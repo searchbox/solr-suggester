@@ -92,7 +92,7 @@ public class TrieNode implements Serializable {
             nc = new NormalizeCount(this.ngram);
         }
         // Logger.info("level\t"+level);
-        if (docfreq > 0) {
+        if (docfreq > 0) { ///normolization as according to equation (10)
             this.numdocs = numdocs;
             nc.termnormfactor += termfreq * Math.log10((numdocs * 1.0) / docfreq);
         }
@@ -106,22 +106,12 @@ public class TrieNode implements Serializable {
         return nc;
     }
 
-    /*public void printRecurse(){
-     Logger.info(myval+"\t"+this.termfreq+"\t"+this.docfreq+"\t"+this.phrases.size()+"\t"+nc.termnormfactor);
-     for (String p :phrases.keySet()){
-     Logger.info("\t"+p+"\t"+phrases.get(p)+"\t"+nc.phrasenormfactor);
-     }
-     for (TrieNode child : children.values()) {
-     child.printRecurse();
-     }
-        
-     }*/
     private void doPhraseTotalFreq() {
         if (phrases != null) {
             for (Double f : phrases.values()) {
                 int gram = (int) (Math.round((f - Math.floor(f)) * 10.0) - 1); // check right side of decimal to get ngram
                 nc.ngramfreq[gram] += Math.floor(f);
-                nc.ngramnum[gram]++;
+                nc.ngramnum[gram]++; //compute total number of n-gram seen
             }
         }
 
@@ -130,7 +120,7 @@ public class TrieNode implements Serializable {
     SuggestionResultSet computeQt(String partialToken, int maxnumphrases) {
         TrieNode current = this;
         for (char c : partialToken.toCharArray()) {
-            if (current.containsChildValue(c)) {
+            if (current.containsChildValue(c)) {   //compute Q_T as per equation (1)
                 current = current.getChild(c);
             } else {
                 //not found?
@@ -159,7 +149,7 @@ public class TrieNode implements Serializable {
             for (String phrase : phrases.keySet()) {
                 //Logger.info(phrase + "\t" + phrases.get(phrase));
 
-                double val = phrases.get(phrase);
+                double val = phrases.get(phrase); //normalization as per equation (11)
                 int gram = (int) Math.round((val - Math.floor(val)) * 10.0) - 1;
                 double newval = Math.floor(val) / logavgfreq[gram];
                 nc.phrasenormfactor += newval;
@@ -174,7 +164,7 @@ public class TrieNode implements Serializable {
         //return nc;
     }
 
-    void prune(int minDocFreq, int minTermFreq, HashSet<String> nonprune) {
+    void prune(int minDocFreq, int minTermFreq, HashSet<String> nonprune) {  //after creating the tree its massive, and most likely filled with a lot of junk, so we iterate thorugh all of it and look for things with low counts and remove them
         if (!nonprune.contains(myval) && (this.termfreq < minTermFreq || this.docfreq < minDocFreq)) { //we're not going to remove it if it comes from the file
             this.termfreq = 0;
             this.docfreq = 0;

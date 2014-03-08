@@ -82,7 +82,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
    
     
     @Override
-    public void init(NamedList args) {
+    public void init(NamedList args) {  //standard loading of options from config file, discussed in documentation
         LOGGER.debug(("Hit init"));
 
         super.init(args);
@@ -161,10 +161,10 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     }
 
     @Override
-    public void process(ResponseBuilder rb) throws IOException {
+    public void process(ResponseBuilder rb) throws IOException { //actually do the request
         LOGGER.trace(("Hit process"));
         SolrParams params = rb.req.getParams();
-        String [] fields = params.getParams(SuggesterComponentParams.FIELDS+"."+SuggesterComponentParams.FIELD); 
+        String [] fields = params.getParams(SuggesterComponentParams.FIELDS+"."+SuggesterComponentParams.FIELD);  //see what fields we should be using for query
         
         if(fields==null){
             
@@ -178,7 +178,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         }
         boolean build = params.getBool(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.BUILD, false);
         SolrIndexSearcher searcher = rb.req.getSearcher();
-        if (build) {
+        if (build) {		//request has requested rebuilding of the dictionary
             long lstartTime = System.currentTimeMillis();
             buildAndWrite(searcher,fields);
             totalBuildTime += System.currentTimeMillis() - lstartTime;
@@ -200,9 +200,9 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         long lstartTime = System.currentTimeMillis();
         numRequests++;
         
-        int maxPhraseSearch= params.getInt(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.MAX_PHRASE_SEARCH,SuggesterComponentParams.MAX_PHRASE_SEARCH_DEFAULT);
+        int maxPhraseSearch= params.getInt(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.MAX_PHRASE_SEARCH,SuggesterComponentParams.MAX_PHRASE_SEARCH_DEFAULT); //maximum number of phrases to look though
         LOGGER.debug("maxPhraseSearch:\t"+maxPhraseSearch);
-        SuggestionResultSet suggestions = suggester.getSuggestions(searcher, fields, query,maxPhraseSearch);
+        SuggestionResultSet suggestions = suggester.getSuggestions(searcher, fields, query,maxPhraseSearch); // actually find suggestions
 
         Integer numneeded = params.getInt(SuggesterComponentParams.PRODUCT_NAME + "." + SuggesterComponentParams.COUNT, SuggesterComponentParams.COUNT_DEFAULT);
 
@@ -210,7 +210,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         NamedList response = new SimpleOrderedMap();
 
         int numout = 0;
-        for (SuggestionResult suggestion : suggestions.suggestions) {
+        for (SuggestionResult suggestion : suggestions.suggestions) { // stick results in an response object
             LOGGER.debug(suggestion.suggestion + "\t" + suggestion.probability);
             response.add(suggestions.myval+suggestion.suggestion, suggestion.probability);
             numout++;
@@ -225,27 +225,27 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
     }
 
     @Override
-    public void inform(SolrCore core) {
+    public void inform(SolrCore core) {  //run on loadup of solr
         LOGGER.trace(("Hit inform"));
-        loadStopWords(core.getResourceLoader());
+        loadStopWords(core.getResourceLoader()); // pull in stop words which will be used later
         if (storeDirname != null) {
             storeDir = new File(storeDirname);
             if (!storeDir.isAbsolute()) {
-                storeDir = new File(core.getDataDir() + File.separator + storeDir); //where does core come from?!
+                storeDir = new File(core.getDataDir() + File.separator + storeDir); 
             }
             if (!storeDir.exists()) {
                 LOGGER.warn("Directory " + storeDir.getAbsolutePath() + " doesn't exist for re-load of suggester, creating emtpy directory, make sure to use suggester.build before first use!");
                 storeDir.mkdirs();
             } else {
                 try {
-                    readFile(storeDir);
+                    readFile(storeDir); // load premade dictionary object
                 } catch (Exception ex) {
                     LOGGER.error("Error loading sbsuggester model");
                 }
             }
         }
 
-        if (buildOnCommit || buildOnOptimize) {
+        if (buildOnCommit || buildOnOptimize) { // check to see if the new searcher should trigger a build on optimize or commit
             LOGGER.info("Registering newSearcher listener for Searchbox Suggester: ");
             core.registerNewSearcherListener(this);
         }
@@ -292,7 +292,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
 
     }
 
-    public void newSearcher(SolrIndexSearcher newSearcher, SolrIndexSearcher currentSearcher) {
+    public void newSearcher(SolrIndexSearcher newSearcher, SolrIndexSearcher currentSearcher) { // new searcher event used to create suggestion model if config flags are appropriately set
         LOGGER.trace("newSearcher hit");
         if (currentSearcher == null) {
             // firstSearcher event
@@ -317,7 +317,7 @@ public class SuggesterComponent extends SearchComponent implements SolrCoreAware
         }
     }
 
-    public void writeFile(File dir) {
+    public void writeFile(File dir) { 
         LOGGER.info("Writing suggester model to file");
         try {
             FileOutputStream fos = new FileOutputStream(dir + File.separator + "suggester.ser");

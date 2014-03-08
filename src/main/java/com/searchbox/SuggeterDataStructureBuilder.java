@@ -71,7 +71,7 @@ public class SuggeterDataStructureBuilder {
 //    }
     /*------------*/
 
-     private String[] getTokens(String fulltext) {
+     private String[] getTokens(String fulltext) { //break text into tokens using opennlp model
          LinkedList<String> tokens = new LinkedList<String>();
         try {
             TokenStream tokenStream = analyzer.tokenStream(fields[0], new StringReader(fulltext));
@@ -99,7 +99,7 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    public String[] getSentences(String fulltext) {
+    public String[] getSentences(String fulltext) { //break text into sentences
         return sentenceDetector.sentDetect(fulltext);
     }
     /*------------*/
@@ -144,7 +144,7 @@ public class SuggeterDataStructureBuilder {
                 try {
                     IndexableField[] multifield = reader.document(docID).getFields(field);
                     for (IndexableField singlefield : multifield) {
-                        text.append(". " + singlefield.stringValue());
+                        text.append(". " + singlefield.stringValue()); //create one big string from all of the text in the documents for processing later on
                     }
 
 
@@ -153,7 +153,7 @@ public class SuggeterDataStructureBuilder {
                 }
             }
             if (text.length() > 0) { //might as well see if its empty
-                processText(text.toString().toLowerCase());
+                processText(text.toString().toLowerCase()); //actually processes the massive string which was created from all of the above fields
                 numdocs++;
             }
         }
@@ -187,19 +187,19 @@ public class SuggeterDataStructureBuilder {
         HashSet<String> seenTerms = new HashSet<String>();
         for (String sentence : getSentences(text)) {
             String [] tokens = getTokens(sentence);
-            for (int zz = 0; zz < tokens.length; zz++) {
+            for (int zz = 0; zz < tokens.length; zz++) {  //for each token in the massive string...
                 String localtoken = tokens[zz];
                 if (stopwords.contains(localtoken)) {     //TODO: should do a skip gram, but we'll look into that later SBSUGGEST-3
                     continue;
                 }
                 
-                TrieNode tokenNode = suggester.AddString(localtoken);
+                TrieNode tokenNode = suggester.AddString(localtoken); //add the string as a possible completion
                 counts[0]++;
 
-                tokenNode.AddPhraseIncrementCount(localtoken, .1);
+                tokenNode.AddPhraseIncrementCount(localtoken, .1); // and then add one to its doc count
                 tokenNode.termfreq++;
 
-                if (!seenTerms.contains(localtoken)) {
+                if (!seenTerms.contains(localtoken)) { //if this token havent been seen in this document already, then add it to this document and increase the document count for this token
                     tokenNode.docfreq++;
                     seenTerms.add(localtoken);
                 }
@@ -208,7 +208,7 @@ public class SuggeterDataStructureBuilder {
                 int yy = zz;
                 StringBuilder sb = new StringBuilder();
                 sb.append(localtoken);
-                while (true) {
+                while (true) { //building up possible phrases using skip grams. we want to keep adding tokens while the token is a stop word so that we can get "republic of ireland" instead of "republic of" or "of ireland" as suggestions
                     yy++;
                     if (yy >= tokens.length) { // no other tokens in stream...
                         break;
@@ -216,7 +216,7 @@ public class SuggeterDataStructureBuilder {
                     String localtoken_2 = tokens[yy];
                     sb.append(" " + localtoken_2);
                     //LOGGER.info(numterms+"\t"+sb);
-                    if (stopwords.contains(localtoken_2)) { //president of
+                    if (stopwords.contains(localtoken_2)) { //president of   
                         continue;
                     }
 
@@ -233,63 +233,9 @@ public class SuggeterDataStructureBuilder {
         }
     }
 
-    /*private void loadStopWords(String stopWordsFileName) {
-        stopwords = new HashSet<String>();
-        BufferedReader in = null;
-        try {
-            try{
-                in = new BufferedReader(new InputStreamReader(new FileInputStream(stopWordsFileName)));
-                LOGGER.info("For Stopwords using:\t"+stopWordsFileName);
-            }
-            catch(Exception ex){
-                LOGGER.info("Using Builtin stopwords (english default)");
-                in = new BufferedReader(new InputStreamReader((getClass().getResourceAsStream(stopWordsFileName))));
-            }
-            
-            String line;
-            while ((line = in.readLine()) != null) {
-                stopwords.add(line.trim().toLowerCase());
-            }
-            in.close();
-        } catch (Exception ex) {
-            LOGGER.error("Error loading stopwords\t" + ex.getMessage());
-        }
-    }*/
+    
 
-    private void computeNormalizers(int minDocFreq, int minTermFreq) {
+    private void computeNormalizers(int minDocFreq, int minTermFreq) { //since its a probability, we need to normalize overall counts so that they're in the range of 0 to 1
         suggester.computeNormalizers(numdocs, minDocFreq, minTermFreq);
     }
-
-   /* private String light_stem(String tokenin) {
-        char[] chars = tokenin.toCharArray();
-        int pos = -1;
-        if (chars.length <= 3) { // to small, just return it
-            return tokenin;
-        }
-
-        boolean remove_s = false;
-        if (chars[chars.length - 1] == 's') //ends in s
-        {
-            if (chars[chars.length - 2] == 'e') {   //ends in es
-                pos = chars.length - 3;
-                if (pos == 2 || (chars[chars.length - 3] == 's' && chars[chars.length - 4] != 's')) {              //to small: lines bikes holes ....has another s: diseases but not 2 ss: processes
-                    pos++;
-                    remove_s = true;
-                }
-            } else {
-                if (chars[chars.length - 2] == 'i' || chars[chars.length - 2] == 'u') {  //metastasis analysis ... fetus
-                    pos = -1;
-                } else {
-                    pos = chars.length - 2;     //nope, just ends in s
-                }
-            }
-        }
-
-        //check if chars[pos] contains consonant, char compare is much faster than regexp!
-        if (remove_s || (pos != -1 && chars[pos] != 'a' && chars[pos] != 'e' && chars[pos] != 'i' && chars[pos] != 'o' && chars[pos] != 'u')) {
-            tokenin = tokenin.substring(0, pos + 1);
-        }
-
-        return tokenin;
-    } */
 }

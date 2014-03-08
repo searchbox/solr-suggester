@@ -82,8 +82,8 @@ public class SuggesterTreeHolder implements Serializable {
         return headNode.AddString(val);
     }
 
-    void computeNormalizers(int numdocs, int minDocFreq, int minTermFreq) {
-        //headNode.printRecurse();;
+    void computeNormalizers(int numdocs, int minDocFreq, int minTermFreq) { //normalization process as per section 3.4
+        
         headNode.prune(minDocFreq, minTermFreq, nonprune); //could merge nodes or rebuild tree also in here
 
         headNode.computeNormalizeTerm(0, numdocs);
@@ -102,32 +102,11 @@ public class SuggesterTreeHolder implements Serializable {
         //headNode.printRecurse();
     }
 
-    /*private String getToken(SolrIndexSearcher searcher, String field, String queryWord) {
-     String token = null;
-     try {
-
-
-     TokenStream tokenStream = searcher.getCore().getSchema().getAnalyzer().tokenStream(field, new StringReader(queryWord));
-     tokenStream.reset();
-     OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
-     CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
-
-     while (tokenStream.incrementToken()) {
-     int startOffset = offsetAttribute.startOffset();
-     int endOffset = offsetAttribute.endOffset();
-     token = charTermAttribute.toString();
-     }
-
-     } catch (IOException ex) {
-     java.util.logging.Logger.getLogger(SuggesterTreeHolder.class.getName()).log(Level.SEVERE, null, ex);
-     }
-     //LOGGER.debug("Took (" + queryWord + " ) and put to ( " + token + ") ");
-     return token;
-     }*/
+    
     SuggestionResultSet getSuggestions(SolrIndexSearcher searcher, String [] fields, String query, int maxPhraseSearch) {
         query=deAccent(query);
         String[] queryTokens = query.replaceAll("[^A-Za-z0-9 ]", " ").replace("  ", " ").trim().split(" "); //TODO should use tokensizer..
-        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch);
+        SuggestionResultSet rs = headNode.computeQt(queryTokens[queryTokens.length - 1].toLowerCase(), maxPhraseSearch); // get completion for the first word in the suggestion
         
         if(rs==null){ //didn't find it, bail early
             return new SuggestionResultSet("",0);
@@ -145,12 +124,12 @@ public class SuggesterTreeHolder implements Serializable {
 
                 SuggestionResultSet newrs = new SuggestionResultSet("", maxPhraseSearch);
                 StringBuilder sb = new StringBuilder();
-                for (int zz = 0; zz < queryTokens.length - 1; zz++) {
+                for (int zz = 0; zz < queryTokens.length - 1; zz++) { // build a search in all of the target fields
                     newrs.myval = newrs.myval + queryTokens[zz] + " ";
                     StringBuilder inner = new StringBuilder();
                     for (String field : fields) {
                         String escaped_field=parser.escape(field);
-                        String escaped_token = parser.escape(queryTokens[zz]);
+                        String escaped_token = parser.escape(queryTokens[zz]); //looking for the query token
                         inner.append(escaped_field + ":" +escaped_token  + " ");
                     }
                     if (inner.length() > 0) {
@@ -161,7 +140,7 @@ public class SuggesterTreeHolder implements Serializable {
                 // LOGGER.info("SB query:\t" + sb.toString());
                 Query q = null;
                 try {
-                    q = parser.parse(sb.toString());
+                    q = parser.parse(sb.toString()); // convert it to a solr query
                     //LOGGER.info("BQ1 query:\t" + q.toString());
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -171,7 +150,7 @@ public class SuggesterTreeHolder implements Serializable {
                 // LOGGER.info("Number of docs in set\t" + qd.size());
 
                 for (SuggestionResult sr : rs.suggestions) {
-                    sb = new StringBuilder();
+                    sb = new StringBuilder(); //for each of the possible suggestions, see how prevelant they are in the document set so that we can know their likelihood of being correct
                     String[] suggestionTokens = sr.suggestion.split(" "); //should use tokensizer
 
                     for (int zz = 0; zz < suggestionTokens.length; zz++) {
@@ -202,7 +181,7 @@ public class SuggesterTreeHolder implements Serializable {
 
                     //LOGGER.info("Number of docs in phrase set\t" + pd.size());
                     if (pd.size() != 0) {
-                        Q_c += qd.intersection(pd).size() / (pd.size() * 1.0);
+                        Q_c += qd.intersection(pd).size() / (pd.size() * 1.0);   //as per equation (13) from paper
                     }
                     //  LOGGER.info("Number of docs in phrase set----- Q_c\t (" + Q_c + ") * (" + sr.probability + ")");
                     newrs.add(sr.suggestion, sr.probability * Q_c);
