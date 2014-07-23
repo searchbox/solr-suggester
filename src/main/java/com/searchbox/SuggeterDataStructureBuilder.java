@@ -84,6 +84,7 @@ public class SuggeterDataStructureBuilder {
 				tokens.add(token);
 			}
 
+            tokenStream.close();
 		} catch (IOException ex) {
 			LOGGER.error("Failure reading tokens from stream", ex);
 		}
